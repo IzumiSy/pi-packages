@@ -12,7 +12,8 @@
   "license": "MIT",
   "pi": {
     "extensions": [
-      "./extensions/git-branch-switch/main.ts"
+      "./extensions/git-branch-switch/main.ts",
+      "./extensions/tiggy/main.ts"
     ]
   },
   "devDependencies": {
