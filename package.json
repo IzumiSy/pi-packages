@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "type-check": "tsc -b",
+    "type-check": "tsc --noEmit",
     "dev": "pi --no-extensions -e ."
   },
   "keywords": [],
