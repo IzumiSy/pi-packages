@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { Input, Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 type TiggyItem = StatusItem | CommitItem;
 
@@ -94,6 +94,19 @@ function wrapBlock(text: string, width: number): string[] {
 		return lines.length === 0 ? [""] : lines;
 	});
 	return wrapped.length === 0 ? [""] : wrapped;
+}
+
+function findMatchingLineIndexes(lines: string[], query: string): number[] {
+	const normalizedQuery = query.trim().toLocaleLowerCase();
+	if (!normalizedQuery) return [];
+	const matches: number[] = [];
+	for (let index = 0; index < lines.length; index += 1) {
+		const line = lines[index];
+		if (line?.toLocaleLowerCase().includes(normalizedQuery)) {
+			matches.push(index);
+		}
+	}
+	return matches;
 }
 
 function renderInlineLine(width: number, text: string): string {
@@ -270,7 +283,13 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 			let wrappedPreviewWidth = 0;
 			let wrappedPreviewText = "";
 			let wrappedPreviewLines = [previewText];
+			let searchActive = false;
+			let searchBaseScroll = 0;
+			let searchMatchLine: number | undefined;
+			let lastSearchQuery = "";
 			const previewCache = new Map<string, string>();
+			const searchInput = new Input();
+			searchInput.focused = false;
 
 			const clampSelection = () => {
 				selectedIndex = currentData.items.length === 0 ? 0 : Math.max(0, Math.min(selectedIndex, currentData.items.length - 1));
@@ -289,7 +308,82 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 				}
 				return wrappedPreviewLines;
 			};
+			const clearSearch = (restoreScroll = false, keepMatch = false) => {
+				searchActive = false;
+				searchInput.focused = false;
+				searchInput.setValue("");
+				if (!keepMatch) {
+					searchMatchLine = undefined;
+					lastSearchQuery = "";
+				}
+				if (restoreScroll) {
+					previewScroll = searchBaseScroll;
+				}
+			};
+			const updateSearch = (matches: number[]) => {
+				if (!searchActive) {
+					return;
+				}
+				const query = searchInput.getValue().trim();
+				if (!query) {
+					searchMatchLine = undefined;
+					previewScroll = searchBaseScroll;
+					return;
+				}
+				const nextMatch = matches.find((line) => line >= searchBaseScroll) ?? matches[0];
+				if (nextMatch === undefined) {
+					searchMatchLine = undefined;
+					return;
+				}
+				searchMatchLine = nextMatch;
+				previewScroll = Math.max(0, nextMatch - Math.floor(Math.max(1, previewViewportRows) / 3));
+			};
+			const openSearch = () => {
+				searchActive = true;
+				searchBaseScroll = previewScroll;
+				searchInput.focused = true;
+				searchInput.setValue("");
+				searchMatchLine = undefined;
+			};
+			const getActiveSearchQuery = () => (searchActive ? searchInput.getValue() : lastSearchQuery).trim();
+			const renderSearchInputLine = (width: number) => {
+				const rawSearchLine = searchInput.render(Math.max(1, width - 1))[0] ?? "";
+				const inputLine = rawSearchLine.startsWith("> ") ? rawSearchLine.slice(2) : rawSearchLine;
+				return padLine(`${theme.fg("accent", "/ ")}${inputLine}`, width);
+			};
+			const renderSearchMatchStatusLine = (width: number, currentMatchIndex: number, matchCount: number) => {
+				if (matchCount === 0) return padLine(theme.fg("warning", "no matches"), width);
+				const current = currentMatchIndex >= 0 ? currentMatchIndex + 1 : 1;
+				return padLine(theme.fg("dim", `${current}/${matchCount} match${matchCount === 1 ? "" : "es"}`), width);
+			};
+			const getSearchModeActive = () => !searchActive && lastSearchQuery !== "";
+			const getPreviewWidth = () => {
+				const width = Math.max(1, tui.terminal.columns);
+				if (width < 40) return width;
+				const availableWidth = Math.max(2, width - visibleWidth("│"));
+				const leftWidth = Math.floor(availableWidth / 2);
+				return Math.max(1, availableWidth - leftWidth);
+			};
+			const jumpSearchMatch = (direction: 1 | -1) => {
+				const query = (searchActive ? searchInput.getValue() : lastSearchQuery).trim();
+				if (!query) return;
+				const matches = findMatchingLineIndexes(getWrappedPreviewLines(getPreviewWidth()), query);
+				if (matches.length === 0) {
+					searchMatchLine = undefined;
+					return;
+				}
+				const currentLine = searchMatchLine ?? previewScroll;
+				const nextMatch =
+					direction > 0
+						? matches.find((line) => line > currentLine) ?? matches[0]
+						: [...matches].reverse().find((line) => line < currentLine) ?? matches[matches.length - 1];
+				if (nextMatch === undefined) return;
+				searchMatchLine = nextMatch;
+				lastSearchQuery = query;
+				previewScroll = Math.max(0, nextMatch - Math.floor(Math.max(1, previewViewportRows) / 3));
+			};
 			const clearPreview = (message = "Press Enter to preview.") => {
+				clearSearch();
 				activeItemKey = undefined;
 				loadingPreview = false;
 				previewScroll = 0;
@@ -297,6 +391,7 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 			};
 
 			const requestPreview = (item = getSelected()) => {
+				clearSearch();
 				previewScroll = 0;
 
 				if (!item) {
@@ -337,6 +432,7 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 			const refresh = () => {
 				const currentKey = getSelected()?.key;
 				const previewKey = activeItemKey;
+				clearSearch();
 				loadingItems = true;
 				banner = undefined;
 				previewCache.clear();
@@ -367,37 +463,53 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 			return {
 				render(width: number) {
 					const items = clampSelection();
-					const selected = items[selectedIndex];
 					const previewItem = getPreviewItem();
 					const totalRows = Math.max(12, tui.terminal.rows - 1);
 					const narrowLayout = width < 40;
+					const divider = theme.fg("borderMuted", "│");
+					const availableWidth = Math.max(2, width - visibleWidth(divider));
+					const leftWidth = narrowLayout ? width : Math.floor(availableWidth / 2);
+					const previewWidth = narrowLayout ? width : Math.max(1, availableWidth - leftWidth);
+					const previewLines = getWrappedPreviewLines(previewWidth);
+					const searchQuery = getActiveSearchQuery();
+					const searchModeActive = getSearchModeActive();
+					const searchMatches = searchQuery ? findMatchingLineIndexes(previewLines, searchQuery) : [];
+					const currentMatchIndex = searchMatchLine === undefined ? -1 : searchMatches.findIndex((line) => line === searchMatchLine);
+					const searchStatus = searchQuery
+						? searchMatches.length === 0
+							? theme.fg("warning", " • no matches")
+							: theme.fg("dim", ` • ${currentMatchIndex >= 0 ? `${currentMatchIndex + 1}/` : ""}${searchMatches.length} match${searchMatches.length === 1 ? "" : "es"}`)
+						: "";
 					const title = renderInlineLine(
 						width,
 						` ${theme.fg("accent", theme.bold("tiggy"))}${theme.fg("muted", ` • ${truncateToWidth(currentData.branchLabel, Math.max(1, width - 12), "")}`)}`,
 					);
-					const help = activeItemKey
-						? theme.fg("dim", "j/k or ↑↓ scroll preview • q close preview • PgUp/PgDn scroll • Ctrl+R reload • Esc close")
-						: theme.fg("dim", "j/k or ↑↓ select • enter preview • Ctrl+U/Ctrl+D jump • PgUp/PgDn scroll • Ctrl+R reload • Esc close");
-					const status = theme.fg(
+					const help = searchActive
+						? theme.fg("dim", "type to search • enter search mode • esc/Ctrl+C cancel")
+						: searchModeActive
+							? theme.fg("dim", "n next match • / new search • esc/Ctrl+C clear search • q close preview")
+							: activeItemKey
+								? theme.fg("dim", "j/k or ↑↓ scroll preview • / search • q close preview • PgUp/PgDn scroll • Ctrl+R reload • Esc close")
+								: theme.fg("dim", "j/k or ↑↓ select • enter preview • Ctrl+U/Ctrl+D jump • PgUp/PgDn scroll • Ctrl+R reload • Esc close");
+					const status = `${theme.fg(
 						loadingItems ? "warning" : loadingPreview ? "warning" : "dim",
 						loadingItems ? "reloading…" : loadingPreview ? "loading…" : `${items.length} items`,
-					);
-					const previewHeader = renderPreviewHeader(previewItem, Math.max(1, width), theme);
+					)}${searchStatus}`;
 					const lines = [theme.fg("accent", "─".repeat(width)), title, renderInlineLine(width, ` ${status}`)];
 
 					if (banner) {
 						lines.push(` ${theme.fg("warning", truncateToWidth(banner, Math.max(1, width - 1), ""))}`);
 					}
 
-					let previewLineCount = 1;
+					let previewLineCount = previewLines.length;
 
 					if (narrowLayout) {
 						const contentRows = Math.max(4, totalRows - (banner ? 10 : 9));
 						const listVisibleRows = Math.min(Math.max(3, Math.min(8, items.length || 1)), Math.max(1, contentRows - 2));
+						const searchRows = searchActive || searchModeActive ? 1 : 0;
 						listViewportRows = listVisibleRows;
-						previewViewportRows = Math.max(1, contentRows - listVisibleRows - 2);
-						const previewLines = getWrappedPreviewLines(width);
-						previewLineCount = previewLines.length;
+						previewViewportRows = Math.max(1, contentRows - listVisibleRows - 2 - searchRows);
+						updateSearch(searchMatches);
 						previewScroll = Math.max(0, Math.min(previewScroll, Math.max(0, previewLines.length - previewViewportRows)));
 						const listStart = Math.max(0, Math.min(selectedIndex - Math.floor(listVisibleRows / 2), Math.max(0, items.length - listVisibleRows)));
 						const visibleItems = items.slice(listStart, listStart + listVisibleRows);
@@ -409,20 +521,24 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 						}
 
 						lines.push("");
-						lines.push(previewHeader);
+						lines.push(renderPreviewHeader(previewItem, width, theme));
 						for (let row = 0; row < previewViewportRows; row++) {
-							lines.push(padLine(previewLines[previewScroll + row] ?? "", width));
+							const lineIndex = previewScroll + row;
+							const line = padLine(previewLines[lineIndex] ?? "", width);
+							lines.push(searchMatchLine === lineIndex ? theme.bg("selectedBg", line) : line);
+						}
+						if (searchActive) {
+							lines.push(renderSearchInputLine(width));
+						} else if (searchModeActive) {
+							lines.push(renderSearchMatchStatusLine(width, currentMatchIndex, searchMatches.length));
 						}
 					} else {
 						const contentRows = Math.max(4, totalRows - (banner ? 8 : 7));
-						const divider = theme.fg("borderMuted", "│");
-						const availableWidth = Math.max(2, width - visibleWidth(divider));
-						const leftWidth = Math.floor(availableWidth / 2);
-						const rightWidth = Math.max(1, availableWidth - leftWidth);
+						const searchRows = searchActive || searchModeActive ? 1 : 0;
+						const rightWidth = previewWidth;
 						listViewportRows = contentRows;
-						previewViewportRows = contentRows;
-						const previewLines = getWrappedPreviewLines(rightWidth);
-						previewLineCount = previewLines.length;
+						previewViewportRows = Math.max(1, contentRows - searchRows);
+						updateSearch(searchMatches);
 						previewScroll = Math.max(0, Math.min(previewScroll, Math.max(0, previewLines.length - previewViewportRows)));
 						const listStart = Math.max(0, Math.min(selectedIndex - Math.floor(contentRows / 2), Math.max(0, items.length - contentRows)));
 						const visibleItems = items.slice(listStart, listStart + contentRows);
@@ -435,7 +551,16 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 							const left = item
 								? renderListRow(item, absoluteIndex === selectedIndex, leftWidth, theme, Boolean(activeItemKey))
 								: " ".repeat(leftWidth);
-							const right = padLine(previewLines[previewScroll + row] ?? "", rightWidth);
+							const isSearchRow = (searchActive || searchModeActive) && row === contentRows - 1;
+							const right = isSearchRow
+								? searchActive
+									? renderSearchInputLine(rightWidth)
+									: renderSearchMatchStatusLine(rightWidth, currentMatchIndex, searchMatches.length)
+								: (() => {
+									const lineIndex = previewScroll + row;
+									const rightLine = padLine(previewLines[lineIndex] ?? "", rightWidth);
+									return searchMatchLine === lineIndex ? theme.bg("selectedBg", rightLine) : rightLine;
+								})();
 							lines.push(`${left}${divider}${right}`);
 						}
 					}
@@ -448,12 +573,47 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 					lines.push(theme.fg("accent", "─".repeat(width)));
 					return lines.map((line) => truncateToWidth(line, width, ""));
 				},
-				invalidate() {},
+				invalidate() {
+					searchInput.invalidate();
+				},
 				handleInput(data: string) {
 					const items = clampSelection();
 
-					if (matchesKey(data, Key.escape)) {
+					if (matchesKey(data, Key.escape) || matchesKey(data, "ctrl+c")) {
+						if (searchActive) {
+							clearSearch(true);
+							tui.requestRender();
+							return;
+						}
+						if (getSearchModeActive()) {
+							clearSearch();
+							tui.requestRender();
+							return;
+						}
 						done(undefined);
+						return;
+					}
+
+					if (matchesKey(data, Key.ctrl("r"))) {
+						refresh();
+						return;
+					}
+
+					if (searchActive) {
+						if (matchesKey(data, Key.enter)) {
+							const query = searchInput.getValue().trim();
+							if (!query) {
+								clearSearch();
+								tui.requestRender();
+								return;
+							}
+							lastSearchQuery = query;
+							clearSearch(false, true);
+							tui.requestRender();
+							return;
+						}
+						searchInput.handleInput(data);
+						tui.requestRender();
 						return;
 					}
 
@@ -467,12 +627,19 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 						return;
 					}
 
-					if (matchesKey(data, Key.ctrl("r"))) {
-						refresh();
-						return;
-					}
-
 					if (activeItemKey) {
+						if (data === "/") {
+							openSearch();
+							tui.requestRender();
+							return;
+						}
+
+						if (data === "n") {
+							jumpSearchMatch(1);
+							tui.requestRender();
+							return;
+						}
+
 						if (matchesKey(data, Key.up) || data === "k") {
 							previewScroll = Math.max(0, previewScroll - 1);
 							tui.requestRender();
