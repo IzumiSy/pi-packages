@@ -95,7 +95,7 @@ export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 		}
 
 		const visibleFiles = visibleGitFiles.slice(0, MAX_VISIBLE_FILES);
-		const lines = [ctx.ui.theme.fg("dim", "current changes")];
+		const lines = [ctx.ui.theme.fg("dim", "Current changes:")];
 		for (const file of visibleFiles) {
 			lines.push(`${ctx.ui.theme.fg(statusColor(file.status), file.status)} ${file.path}`);
 		}
