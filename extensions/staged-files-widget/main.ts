@@ -1,7 +1,7 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { createLocalBashOperations, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const WIDGET_ID = "staged-files";
-const POLL_INTERVAL_MS = 1500;
+const POLL_INTERVAL_MS = 5000;
 const MAX_VISIBLE_FILES = 8;
 const REFRESH_TOOLS = new Set(["edit", "write", "bash"]);
 
@@ -140,7 +140,7 @@ export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 		activeContext = ctx;
 		lastRenderedState = undefined;
 		void refreshWidget(ctx);
-		// ponytail: poll git status instead of wiring every git-changing path; replace with a watcher only if this shows up in profiles.
+		// ponytail: events handle pi-driven changes; keep a slow poll only for edits happening outside pi.
 		pollTimer = setInterval(() => {
 			if (!activeContext) return;
 			void refreshWidget(activeContext);
@@ -156,6 +156,22 @@ export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 	pi.on("tool_execution_end", async (event, ctx) => {
 		if (!REFRESH_TOOLS.has(event.toolName)) return;
 		await refreshWidget(ctx);
+	});
+
+	pi.on("user_bash", (event, ctx) => {
+		const local = createLocalBashOperations();
+		return {
+			operations: {
+				...local,
+				async exec(command, cwd, options) {
+					const result = await local.exec(command, cwd, options);
+					if (event.command.trim() !== "") {
+						void refreshWidget(ctx);
+					}
+					return result;
+				},
+			},
+		};
 	});
 
 	pi.on("agent_end", async (_event, ctx) => {
