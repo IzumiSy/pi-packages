@@ -3,9 +3,9 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 const WIDGET_ID = "staged-files";
 const POLL_INTERVAL_MS = 1500;
 const MAX_VISIBLE_FILES = 8;
+const REFRESH_TOOLS = new Set(["edit", "write", "bash"]);
 
 type GitFile = {
-	kind: "staged" | "untracked";
 	status: string;
 	path: string;
 };
@@ -16,21 +16,34 @@ function parseVisibleFiles(stdout: string): GitFile[] {
 		.map((line) => line.trimEnd())
 		.filter((line) => line.length >= 4)
 		.flatMap<GitFile>((line) => {
-			if (line.startsWith("?? ")) {
-				return [{ kind: "untracked", status: "??", path: line.slice(3).trim() } satisfies GitFile];
-			}
-
-			const indexStatus = line[0];
-			if (indexStatus === undefined || indexStatus === " " || indexStatus === "?" || indexStatus === "!") {
+			if (line.startsWith("!! ")) {
 				return [];
 			}
 
-			return [{ kind: "staged", status: line.slice(0, 2), path: line.slice(3).trim() } satisfies GitFile];
+			if (line.startsWith("?? ")) {
+				return [{ status: "??", path: line.slice(3).trim() } satisfies GitFile];
+			}
+
+			const status = line.slice(0, 2);
+			const path = line.slice(3).trim();
+			const indexStatus = status[0];
+			const worktreeStatus = status[1];
+			const hasIndexChange = indexStatus !== undefined && indexStatus !== " ";
+			const hasWorktreeChange = worktreeStatus !== undefined && worktreeStatus !== " ";
+			if (!hasIndexChange && !hasWorktreeChange) {
+				return [];
+			}
+
+			return [{ status, path } satisfies GitFile];
 		});
 }
 
+function primaryStatusChar(status: string): string {
+	return status[0] && status[0] !== " " ? status[0] : (status[1] && status[1] !== " " ? status[1] : "?");
+}
+
 function statusColor(status: string): "accent" | "error" | "success" | "warning" {
-	switch (status[0]) {
+	switch (primaryStatusChar(status)) {
 		case "A":
 			return "success";
 		case "D":
@@ -38,6 +51,7 @@ function statusColor(status: string): "accent" | "error" | "success" | "warning"
 			return "error";
 		case "R":
 		case "C":
+		case "?":
 			return "accent";
 		default:
 			return "warning";
@@ -47,6 +61,7 @@ function statusColor(status: string): "accent" | "error" | "success" | "warning"
 export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 	let pollTimer: NodeJS.Timeout | undefined;
 	let refreshInFlight = false;
+	let refreshQueued = false;
 	let lastRenderedState: string | undefined;
 	let activeContext: ExtensionContext | undefined;
 
@@ -55,44 +70,59 @@ export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 		ctx.ui.setWidget(WIDGET_ID, undefined);
 	}
 
-	async function refreshWidget(ctx: ExtensionContext): Promise<void> {
-		if (!ctx.hasUI || refreshInFlight) return;
-		refreshInFlight = true;
+	async function renderWidget(ctx: ExtensionContext): Promise<void> {
+		const result = await pi.exec("git", ["status", "--porcelain=v1"], {
+			cwd: ctx.cwd,
+			timeout: 5_000,
+		});
 
-		try {
-			const result = await pi.exec("git", ["status", "--porcelain=v1"], {
-				cwd: ctx.cwd,
-				timeout: 5_000,
-			});
-
-			if (result.code !== 0) {
-				if (lastRenderedState !== "__hidden__") {
-					lastRenderedState = "__hidden__";
-					clearWidget(ctx);
-				}
-				return;
-			}
-
-			const visibleGitFiles = parseVisibleFiles(result.stdout);
-			const nextState = visibleGitFiles.map((file) => `${file.kind}:${file.status} ${file.path}`).join("\n");
-			if (nextState === lastRenderedState) return;
-			lastRenderedState = nextState;
-
-			if (visibleGitFiles.length === 0) {
+		if (result.code !== 0) {
+			if (lastRenderedState !== "__hidden__") {
+				lastRenderedState = "__hidden__";
 				clearWidget(ctx);
-				return;
 			}
+			return;
+		}
 
-			const visibleFiles = visibleGitFiles.slice(0, MAX_VISIBLE_FILES);
-			const lines = [ctx.ui.theme.fg("dim", "git")];
-			for (const file of visibleFiles) {
-				lines.push(`${ctx.ui.theme.fg(statusColor(file.status), file.status)} ${file.path}`);
-			}
-			if (visibleGitFiles.length > MAX_VISIBLE_FILES) {
-				lines.push(ctx.ui.theme.fg("dim", `… +${visibleGitFiles.length - MAX_VISIBLE_FILES} more`));
-			}
+		const visibleGitFiles = parseVisibleFiles(result.stdout);
+		const nextState = visibleGitFiles.map((file) => `${file.status} ${file.path}`).join("\n");
+		if (nextState === lastRenderedState) return;
+		lastRenderedState = nextState;
 
-			ctx.ui.setWidget(WIDGET_ID, lines);
+		if (visibleGitFiles.length === 0) {
+			clearWidget(ctx);
+			return;
+		}
+
+		const visibleFiles = visibleGitFiles.slice(0, MAX_VISIBLE_FILES);
+		const lines = [ctx.ui.theme.fg("dim", "current changes")];
+		for (const file of visibleFiles) {
+			lines.push(`${ctx.ui.theme.fg(statusColor(file.status), file.status)} ${file.path}`);
+		}
+		if (visibleGitFiles.length > MAX_VISIBLE_FILES) {
+			lines.push(ctx.ui.theme.fg("dim", `… +${visibleGitFiles.length - MAX_VISIBLE_FILES} more`));
+		}
+
+		ctx.ui.setWidget(WIDGET_ID, lines);
+	}
+
+	async function refreshWidget(ctx: ExtensionContext): Promise<void> {
+		if (!ctx.hasUI) return;
+		activeContext = ctx;
+
+		if (refreshInFlight) {
+			refreshQueued = true;
+			return;
+		}
+
+		refreshInFlight = true;
+		try {
+			do {
+				refreshQueued = false;
+				const currentCtx = activeContext;
+				if (!currentCtx?.hasUI) return;
+				await renderWidget(currentCtx);
+			} while (refreshQueued);
 		} finally {
 			refreshInFlight = false;
 		}
@@ -123,6 +153,11 @@ export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 		startPolling(ctx);
 	});
 
+	pi.on("tool_execution_end", async (event, ctx) => {
+		if (!REFRESH_TOOLS.has(event.toolName)) return;
+		await refreshWidget(ctx);
+	});
+
 	pi.on("agent_end", async (_event, ctx) => {
 		await refreshWidget(ctx);
 	});
@@ -131,6 +166,7 @@ export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 		stopPolling();
 		activeContext = undefined;
 		lastRenderedState = undefined;
+		refreshQueued = false;
 		clearWidget(ctx);
 	});
 }
