@@ -13,7 +13,8 @@
   "pi": {
     "extensions": [
       "./extensions/git-branch-switch/main.ts",
-      "./extensions/tiggy/main.ts"
+      "./extensions/tiggy/main.ts",
+      "./extensions/staged-files-widget/main.ts"
     ]
   },
   "devDependencies": {
