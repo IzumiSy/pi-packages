@@ -102,6 +102,7 @@ export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 		if (visibleGitFiles.length > MAX_VISIBLE_FILES) {
 			lines.push(ctx.ui.theme.fg("dim", `… +${visibleGitFiles.length - MAX_VISIBLE_FILES} more`));
 		}
+		lines.push(" ");
 
 		ctx.ui.setWidget(WIDGET_ID, lines);
 	}
