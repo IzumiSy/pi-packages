@@ -1,0 +1,26 @@
+{
+  "name": "pi-dev-tools",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "type-check": "tsc -b",
+    "dev": "pi --no-extensions -e ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./extensions/git-branch-switch/main.ts"
+    ]
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.80.2",
+    "@earendil-works/pi-tui": "^0.80.2",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "match-sorter": "^8.3.0"
+  }
+}
