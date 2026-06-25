@@ -1,6 +1,6 @@
-# pi-dev-tools
+# Pi Packages
 
-Custom Pi extensions for Git-heavy workflows.
+Custom Pi extensions for my development workflow.
 
 ## Extensions
 
