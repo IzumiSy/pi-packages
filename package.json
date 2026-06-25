@@ -15,7 +15,7 @@
     "extensions": [
       "./extensions/git-branch-switch/main.ts",
       "./extensions/tiggy/main.ts",
-      "./extensions/staged-files-widget/main.ts",
+      "./extensions/git-status-widget/main.ts",
       "./extensions/command-gate/main.ts"
     ]
   },

@@ -1,6 +1,6 @@
 import { createLocalBashOperations, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-const WIDGET_ID = "staged-files";
+const WIDGET_ID = "git-status";
 const POLL_INTERVAL_MS = 5000;
 const MAX_VISIBLE_FILES = 8;
 const REFRESH_TOOLS = new Set(["edit", "write", "bash"]);
@@ -58,7 +58,7 @@ function statusColor(status: string): "accent" | "error" | "success" | "warning"
 	}
 }
 
-export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
+export default function gitStatusWidgetExtension(pi: ExtensionAPI) {
 	let pollTimer: NodeJS.Timeout | undefined;
 	let refreshInFlight = false;
 	let refreshQueued = false;
@@ -95,7 +95,7 @@ export default function stagedFilesWidgetExtension(pi: ExtensionAPI) {
 		}
 
 		const visibleFiles = visibleGitFiles.slice(0, MAX_VISIBLE_FILES);
-		const lines = [ctx.ui.theme.fg("dim", "Current changes:")];
+		const lines = [ctx.ui.theme.fg("dim", "Git status:")];
 		for (const file of visibleFiles) {
 			lines.push(`${ctx.ui.theme.fg(statusColor(file.status), file.status)} ${file.path}`);
 		}
