@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -11,8 +11,10 @@ import {
 	makeRuleId,
 	normalizeDirectoryRuleMap,
 	normalizeIdList,
+	parseSeedRules,
 	type CommandGateRule,
-} from "../extensions/command-gate/core";
+} from "../extensions/command-gate/core.ts";
+import seedConfig from "../extensions/command-gate/seed.json";
 
 function makeRule(overrides: Partial<CommandGateRule> & Pick<CommandGateRule, "id" | "action" | "pattern">): CommandGateRule {
 	return {
@@ -105,35 +107,26 @@ describe("command-gate core", () => {
 		expect(findMatchingRule("echo hello", rules)).toBeUndefined();
 	});
 
-	it("seeds the global rules file from seed.json when it does not exist", () => {
+	it("parses the bundled seed config", () => {
+		const seedRules = parseSeedRules(seedConfig, "test-seed");
+		expect(seedRules.length).toBeGreaterThan(0);
+		expect(seedRules[0]).toMatchObject({
+			id: expect.any(String),
+			action: expect.stringMatching(/^(block|confirm)$/),
+			pattern: expect.any(String),
+		});
+	});
+
+	it("seeds the global rules file from bundled rules when it does not exist", () => {
 		const projectRoot = mkdtempSync(join(tmpdir(), "command-gate-project-"));
 		const homeDir = mkdtempSync(join(tmpdir(), "command-gate-home-"));
-		const seedDir = join(projectRoot, "extensions", "command-gate");
-		mkdirSync(seedDir, { recursive: true });
-		writeFileSync(
-			join(seedDir, "seed.json"),
-			JSON.stringify(
-				{
-					bash: [
-						{
-							id: "seed-rule",
-							enabled: true,
-							action: "block",
-							pattern: "danger",
-							reason: "seeded",
-						},
-					],
-				},
-				null,
-				2,
-			),
-		);
+		const seedRules = parseSeedRules(seedConfig, "test-seed");
 
 		const paths = createCommandGatePaths(projectRoot, homeDir);
-		const config = ensureRulesFile(paths);
+		const config = ensureRulesFile(paths, seedRules);
 		const persisted = JSON.parse(readFileSync(paths.globalRulesPath, "utf8")) as { bash: Array<{ id: string }> };
 
-		expect(config.bash.map((rule) => rule.id)).toEqual(["seed-rule"]);
-		expect(persisted.bash.map((rule) => rule.id)).toEqual(["seed-rule"]);
+		expect(config.bash.map((rule) => rule.id)).toEqual(seedRules.map((rule) => rule.id));
+		expect(persisted.bash.map((rule) => rule.id)).toEqual(seedRules.map((rule) => rule.id));
 	});
 });

@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { defineTool, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import seedConfig from "./seed.json";
 import {
 	addGlobalRuleDisable,
 	addProjectRuleDisable,
@@ -15,16 +16,18 @@ import {
 	makeRuleId,
 	normalizeGlobalState,
 	nowIso,
+	parseSeedRules,
 	saveGlobalState,
 	saveProjectState,
 	saveRules,
 	type DisableScope,
 	type GlobalState,
 	type RuleAction,
-} from "./core";
+} from "./core.ts";
 
 const PROJECT_ROOT = process.cwd();
 const PATHS = createCommandGatePaths(PROJECT_ROOT, homedir());
+const SEED_RULES = parseSeedRules(seedConfig, "extensions/command-gate/seed.json");
 const SESSION_STATE_TYPE = "command-gate-session-state";
 
 function getProjectStatePath(): string {
@@ -44,7 +47,7 @@ function getSessionState(ctx: ExtensionContext): GlobalState {
 
 function getEffectiveRules(ctx: ExtensionContext) {
 	return getEffectiveRulesFromState({
-		config: loadRules(PATHS),
+		config: loadRules(PATHS, SEED_RULES),
 		globalState: loadGlobalState(PATHS.globalStatePath),
 		projectState: loadProjectState(PATHS.projectStatePath),
 		sessionState: getSessionState(ctx),
@@ -120,7 +123,7 @@ const addRuleTool = defineTool({
 	} as any,
 	async execute(_toolCallId, params: { action: RuleAction; pattern: string; reason?: string; id?: string }) {
 		new RegExp(params.pattern, "i");
-		const config = loadRules(PATHS);
+		const config = loadRules(PATHS, SEED_RULES);
 		const existingIds = new Set(config.bash.map((rule) => rule.id));
 		const id = params.id?.trim() || makeRuleId(params.pattern, existingIds);
 		if (existingIds.has(id)) {

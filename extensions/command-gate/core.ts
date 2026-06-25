@@ -38,7 +38,6 @@ export interface CommandGatePaths {
 	globalRulesPath: string;
 	globalStatePath: string;
 	projectStatePath: string;
-	seedRulesPath: string;
 }
 
 export interface EffectiveRulesInput {
@@ -57,7 +56,6 @@ export function createCommandGatePaths(projectRoot: string, homeDir: string): Co
 		globalRulesPath: resolve(globalConfigDir, "global.json"),
 		globalStatePath: resolve(globalConfigDir, "global-state.json"),
 		projectStatePath: resolve(globalConfigDir, "project-state.json"),
-		seedRulesPath: resolve(projectRoot, "extensions", "command-gate", "seed.json"),
 	};
 }
 
@@ -130,18 +128,17 @@ export function normalizeRule(value: unknown): CommandGateRule | undefined {
 	};
 }
 
-export function loadSeedRules(seedRulesPath: string): CommandGateRule[] {
-	const parsed = loadJson(seedRulesPath);
-	if (!parsed || typeof parsed !== "object") {
-		throw new Error(`Invalid command-gate seed config: ${seedRulesPath}`);
+export function parseSeedRules(seedConfig: unknown, sourceLabel = "command-gate seed config"): CommandGateRule[] {
+	if (!seedConfig || typeof seedConfig !== "object") {
+		throw new Error(`Invalid command-gate seed config: ${sourceLabel}`);
 	}
 
-	const candidate = parsed as Partial<CommandGateConfig>;
+	const candidate = seedConfig as Partial<CommandGateConfig>;
 	const rules = Array.isArray(candidate.bash)
 		? candidate.bash.map(normalizeRule).filter((rule): rule is CommandGateRule => rule !== undefined)
 		: [];
 	if (rules.length === 0) {
-		throw new Error(`Command-gate seed config has no valid rules: ${seedRulesPath}`);
+		throw new Error(`Command-gate seed config has no valid rules: ${sourceLabel}`);
 	}
 	return rules;
 }
@@ -170,8 +167,7 @@ export function saveRules(path: string, config: CommandGateConfig): void {
 	writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
 }
 
-export function ensureRulesFile(paths: CommandGatePaths): CommandGateConfig {
-	const seedRules = loadSeedRules(paths.seedRulesPath);
+export function ensureRulesFile(paths: CommandGatePaths, seedRules: CommandGateRule[]): CommandGateConfig {
 	if (existsSync(paths.globalRulesPath)) {
 		return loadRulesFromPath(paths.globalRulesPath, seedRules);
 	}
@@ -181,8 +177,8 @@ export function ensureRulesFile(paths: CommandGatePaths): CommandGateConfig {
 	return config;
 }
 
-export function loadRules(paths: CommandGatePaths): CommandGateConfig {
-	return ensureRulesFile(paths);
+export function loadRules(paths: CommandGatePaths, seedRules: CommandGateRule[]): CommandGateConfig {
+	return ensureRulesFile(paths, seedRules);
 }
 
 export function saveGlobalState(path: string, state: GlobalState): void {
