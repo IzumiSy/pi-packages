@@ -1,6 +1,7 @@
 {
-  "name": "pi-dev-tools",
+  "name": "@izumisy/pi-packages",
   "version": "0.1.0",
+  "private": true,
   "description": "",
   "main": "index.js",
   "scripts": {
