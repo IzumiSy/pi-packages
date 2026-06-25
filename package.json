@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
     "dev": "pi --no-extensions -e ."
   },
   "keywords": [],
@@ -21,7 +22,8 @@
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.80.2",
     "@earendil-works/pi-tui": "^0.80.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "match-sorter": "^8.3.0"
