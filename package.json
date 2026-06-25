@@ -14,7 +14,8 @@
     "extensions": [
       "./extensions/git-branch-switch/main.ts",
       "./extensions/tiggy/main.ts",
-      "./extensions/staged-files-widget/main.ts"
+      "./extensions/staged-files-widget/main.ts",
+      "./extensions/command-gate/main.ts"
     ]
   },
   "devDependencies": {
