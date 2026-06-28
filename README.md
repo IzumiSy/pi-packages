@@ -2,6 +2,12 @@
 
 Custom Pi extensions for my development workflow.
 
+## Install
+
+```bash
+pi install git:github.com/IzumiSy/pi-packages
+```
+
 ## Extensions
 
 | Extension | What it does |
