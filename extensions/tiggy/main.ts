@@ -1,5 +1,5 @@
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { Input, Key, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { highlightCode, type ExtensionAPI, type ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { Input, Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import {
 	countNonEmptyLines,
 	findMatchingLineIndexes,
@@ -63,6 +63,31 @@ function renderPreviewHeader(item: TiggyItem | undefined, width: number, theme: 
 		truncateToWidth(`${theme.fg("success", item.sha)}${theme.fg("muted", ` • ${item.date} • ${item.author}`)}`, width, ""),
 		width,
 	);
+}
+
+const FG_RESET = "\u001b[39m";
+
+function ensureForegroundReset(line: string): string {
+	return line.endsWith(FG_RESET) ? line : `${line}${FG_RESET}`;
+}
+
+function highlightPreviewLine(line: string, theme: ExtensionCommandContext["ui"]["theme"]): string {
+	if (line.startsWith("diff --git ")) return theme.fg("accent", theme.bold(line));
+	if (line.startsWith("@@")) return theme.fg("warning", line);
+	if (line.startsWith("+++ ") || line.startsWith("--- ")) return theme.fg("muted", line);
+	if (line.startsWith("+") && !line.startsWith("+++")) return theme.fg("toolDiffAdded", line);
+	if (line.startsWith("-") && !line.startsWith("---")) return theme.fg("toolDiffRemoved", line);
+	if (line === "STAGED" || line === "UNSTAGED" || line === "UNTRACKED" || line === "WORKING TREE") {
+		return theme.fg("accent", theme.bold(line));
+	}
+	return line;
+}
+
+function highlightPreviewText(text: string, theme: ExtensionCommandContext["ui"]["theme"]): string {
+	return highlightCode(text, "diff")
+		.map(ensureForegroundReset)
+		.map((line) => highlightPreviewLine(line, theme))
+		.join("\n");
 }
 
 export default function tiggyExtension(pi: ExtensionAPI) {
@@ -193,6 +218,9 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 			let wrappedPreviewWidth = 0;
 			let wrappedPreviewText = "";
 			let wrappedPreviewLines = [previewText];
+			let highlightedPreviewWidth = 0;
+			let highlightedPreviewText = "";
+			let highlightedPreviewLines = [previewText];
 			let searchActive = false;
 			let searchBaseScroll = 0;
 			let searchMatchLine: number | undefined;
@@ -217,6 +245,18 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 					wrappedPreviewLines = wrapBlock(previewText, width);
 				}
 				return wrappedPreviewLines;
+			};
+			const getHighlightedPreviewLines = (width: number) => {
+				if (highlightedPreviewWidth !== width || highlightedPreviewText !== previewText) {
+					highlightedPreviewWidth = width;
+					highlightedPreviewText = previewText;
+					const sourceLines = highlightPreviewText(previewText, theme).split(/\r?\n/);
+					highlightedPreviewLines = sourceLines.flatMap((line) => {
+						const wrapped = wrapTextWithAnsi(line || " ", width);
+						return wrapped.length === 0 ? [""] : wrapped;
+					});
+				}
+				return highlightedPreviewLines;
 			};
 			const clearSearch = (restoreScroll = false, keepMatch = false) => {
 				searchActive = false;
@@ -385,6 +425,7 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 					const leftWidth = narrowLayout ? width : Math.floor(availableWidth / 2);
 					const previewWidth = narrowLayout ? width : Math.max(1, availableWidth - leftWidth);
 					const previewLines = getWrappedPreviewLines(previewWidth);
+					const previewDisplayLines = getHighlightedPreviewLines(previewWidth);
 					const searchQuery = getActiveSearchQuery();
 					const searchModeActive = getSearchModeActive();
 					const searchMatches = searchQuery ? findMatchingLineIndexes(previewLines, searchQuery) : [];
@@ -438,7 +479,7 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 						lines.push(renderPreviewHeader(previewItem, width, theme));
 						for (let row = 0; row < previewViewportRows; row++) {
 							const lineIndex = previewScroll + row;
-							const line = padLine(previewLines[lineIndex] ?? "", width);
+							const line = padLine(previewDisplayLines[lineIndex] ?? "", width);
 							lines.push(searchMatchLine === lineIndex ? theme.bg("selectedBg", line) : line);
 						}
 						if (searchActive) {
@@ -472,7 +513,7 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 									: renderSearchMatchStatusLine(rightWidth, currentMatchIndex, searchMatches.length)
 								: (() => {
 									const lineIndex = previewScroll + row;
-									const rightLine = padLine(previewLines[lineIndex] ?? "", rightWidth);
+									const rightLine = padLine(previewDisplayLines[lineIndex] ?? "", rightWidth);
 									return searchMatchLine === lineIndex ? theme.bg("selectedBg", rightLine) : rightLine;
 								})();
 							lines.push(`${left}${divider}${right}`);
