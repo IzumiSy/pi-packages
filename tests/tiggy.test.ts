@@ -61,9 +61,9 @@ async function waitForController(getController: () => RenderController | undefin
 	throw new Error("tiggy controller was not mounted");
 }
 
-async function mountTiggy(): Promise<MountedTiggy> {
+async function mountTiggy(commandName = "tiggy"): Promise<MountedTiggy> {
 	const execCalls: ExecCall[] = [];
-	let commandHandler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
+	const commandHandlers = new Map<string, (args: string, ctx: unknown) => Promise<void>>();
 	let controller: RenderController | undefined;
 	let done: (() => void) | undefined;
 
@@ -119,14 +119,13 @@ async function mountTiggy(): Promise<MountedTiggy> {
 			throw new Error(`Unexpected git args: ${args.join(" ")}`);
 		},
 		registerCommand: (name: string, options: { handler: (args: string, ctx: unknown) => Promise<void> }) => {
-			if (name === "tiggy") {
-				commandHandler = options.handler;
-			}
+			commandHandlers.set(name, options.handler);
 		},
 	} as unknown as ExtensionAPI;
 
 	tiggyExtension(pi);
-	if (!commandHandler) throw new Error("tiggy command handler was not registered");
+	const commandHandler = commandHandlers.get(commandName);
+	if (!commandHandler) throw new Error(`${commandName} command handler was not registered`);
 
 	const closePromise = new Promise<void>((resolve) => {
 		done = resolve;
@@ -266,6 +265,15 @@ describe("tiggy TUI", () => {
 
 		await tiggy.press("q");
 		expect(tiggy.render()).toContain("Press Enter to preview.");
+
+		await tiggy.close();
+	});
+
+	it("opens /diff with the working tree preview already visible", async () => {
+		const tiggy = await mountTiggy("diff");
+
+		expect(tiggy.render()).toContain("WORKING TREE");
+		expect(tiggy.execCalls.some((call) => call.args[0] === "diff")).toBe(true);
 
 		await tiggy.close();
 	});

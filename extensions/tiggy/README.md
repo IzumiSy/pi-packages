@@ -5,6 +5,7 @@ Browse git history and working tree changes in a Pi TUI.
 ## Surface
 
 - Slash command: `/tiggy`
+- Slash command: `/diff` (opens tiggy with the working tree preview already open)
 
 ## Entry point
 

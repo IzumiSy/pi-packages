@@ -167,7 +167,10 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 		return loadCommitPreview(ctx, item.sha);
 	}
 
-	async function openTiggy(ctx: ExtensionCommandContext): Promise<void> {
+	async function openTiggy(
+		ctx: ExtensionCommandContext,
+		options: { openInitialPreview?: boolean } = {},
+	): Promise<void> {
 		const data = await loadItems(ctx);
 		if (ctx.mode !== "tui") {
 			ctx.ui.notify("/tiggy is TUI-only", "warning");
@@ -175,6 +178,7 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 		}
 
 		await ctx.ui.custom<void>((tui, theme, _kb, done) => {
+			const { openInitialPreview = false } = options;
 			let currentData = data;
 			let selectedIndex = 0;
 			let previewText = "Press Enter to preview.";
@@ -365,6 +369,10 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 						tui.requestRender();
 					});
 			};
+
+			if (openInitialPreview) {
+				requestPreview(currentData.items[0]);
+			}
 
 			return {
 				render(width: number) {
@@ -644,6 +652,17 @@ export default function tiggyExtension(pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			try {
 				await openTiggy(ctx);
+			} catch (error: unknown) {
+				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+			}
+		},
+	});
+
+	pi.registerCommand("diff", {
+		description: "Open tiggy with the working tree diff previewed",
+		handler: async (_args, ctx) => {
+			try {
+				await openTiggy(ctx, { openInitialPreview: true });
 			} catch (error: unknown) {
 				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
 			}
