@@ -350,7 +350,7 @@ export default function gitBranchSwitchExtension(pi: ExtensionAPI) {
 
 	async function checkoutPullRequest(ctx: ExtensionCommandContext, pr: PullRequestInfo): Promise<void> {
 		ctx.ui.notify("Switching to PR branch...", "info");
-		const result = await run(ctx, "gh", ["pr", "checkout", String(pr.number)], 60_000);
+		const result = await run(ctx, "gh", ["pr", "checkout", String(pr.number), "--force"], 60_000);
 		if (result.code !== 0) {
 			ctx.ui.notify(formatCommandError(result), "error");
 			return;
