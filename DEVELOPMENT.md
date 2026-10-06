@@ -18,7 +18,6 @@ pnpm test
 
 Pi loads extensions from `package.json` via `pi.extensions`.
 
-
 ## Project layout
 
 - `extensions/` — extension source code
