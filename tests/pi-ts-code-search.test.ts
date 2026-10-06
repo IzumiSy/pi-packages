@@ -120,8 +120,20 @@ describe("code-searcher cache invalidation", () => {
 
     expect(searchTool).toBeDefined();
 
-    const firstResult = await searchTool!.execute("tool-call", { query: "alpha" }, undefined, undefined, { cwd });
-    const secondResult = await searchTool!.execute("tool-call", { query: "alpha" }, undefined, undefined, { cwd });
+    const firstResult = await searchTool!.execute(
+      "tool-call",
+      { query: "alpha" },
+      undefined,
+      undefined,
+      { cwd },
+    );
+    const secondResult = await searchTool!.execute(
+      "tool-call",
+      { query: "alpha" },
+      undefined,
+      undefined,
+      { cwd },
+    );
     const firstDetails = getSearchDetails(firstResult);
     const secondDetails = getSearchDetails(secondResult);
 
@@ -206,9 +218,15 @@ describe("ts_code_search_importers", () => {
 
     expect(importerTool).toBeDefined();
 
-    const result = await importerTool!.execute("tool-call", { file: "src/foo.ts", symbol: "Foo" }, undefined, undefined, {
-      cwd,
-    });
+    const result = await importerTool!.execute(
+      "tool-call",
+      { file: "src/foo.ts", symbol: "Foo" },
+      undefined,
+      undefined,
+      {
+        cwd,
+      },
+    );
     const hits = getImporterDetails(result).hits ?? [];
 
     expect(hits).toHaveLength(2);
@@ -261,9 +279,15 @@ export const authHelpers = {
     const searchHits = getSearchDetails(searchResult).hits ?? [];
     expect(searchHits[0]?.qualifiedName).toBe("AuthService.login");
 
-    const outlineResult = await outlineTool!.execute("tool-call", { file: "src/example.ts" }, undefined, undefined, {
-      cwd,
-    });
+    const outlineResult = await outlineTool!.execute(
+      "tool-call",
+      { file: "src/example.ts" },
+      undefined,
+      undefined,
+      {
+        cwd,
+      },
+    );
     const entries = getOutlineDetails(outlineResult).entries ?? [];
     expect(entries.map((entry) => entry.qualifiedName)).toEqual(
       expect.arrayContaining([
@@ -282,16 +306,23 @@ describe("ts_code_search_references", () => {
     const { tools } = createFakePi();
     const referenceTool = tools.get("ts_code_search_references");
     const cwd = makeFilesProject({
-      "src/foo.ts": 'export function Foo() { return 1; }\nexport function wrap() { return Foo(); }\n',
+      "src/foo.ts":
+        "export function Foo() { return 1; }\nexport function wrap() { return Foo(); }\n",
       "src/bar.ts": 'import { Foo } from "./foo";\nexport const bar = Foo();\n',
     });
     createdDirs.push(cwd);
 
     expect(referenceTool).toBeDefined();
 
-    const result = await referenceTool!.execute("tool-call", { symbol: "Foo", file: "src/foo.ts" }, undefined, undefined, {
-      cwd,
-    });
+    const result = await referenceTool!.execute(
+      "tool-call",
+      { symbol: "Foo", file: "src/foo.ts" },
+      undefined,
+      undefined,
+      {
+        cwd,
+      },
+    );
     const hits = getReferenceDetails(result).hits ?? [];
 
     expect(hits).toEqual(
@@ -333,7 +364,13 @@ export function AutocompleteRoot() {
 
     expect(searchTool).toBeDefined();
 
-    const result = await searchTool!.execute("tool-call", { query: "autoLogin", limit: 10 }, undefined, undefined, { cwd });
+    const result = await searchTool!.execute(
+      "tool-call",
+      { query: "autoLogin", limit: 10 },
+      undefined,
+      undefined,
+      { cwd },
+    );
     const hits = getSearchDetails(result).hits ?? [];
 
     expect(hits.map((hit) => hit.qualifiedName)).toEqual(["useAutoLogin"]);
@@ -353,7 +390,13 @@ export function AutocompleteRoot() {
 
     expect(searchTool).toBeDefined();
 
-    const result = await searchTool!.execute("tool-call", { query: "autoComplete", limit: 10 }, undefined, undefined, { cwd });
+    const result = await searchTool!.execute(
+      "tool-call",
+      { query: "autoComplete", limit: 10 },
+      undefined,
+      undefined,
+      { cwd },
+    );
     const hits = getSearchDetails(result).hits ?? [];
 
     expect(hits[0]?.qualifiedName).toBe("AutocompleteRoot");
@@ -438,7 +481,9 @@ export function useAutoLogin() {
     );
     const outlineDetails = getOutlineDetails(outlineResult);
     expect(outlineDetails.timing).toBe(true);
-    expect(outlineResult.content?.[0]?.text).toContain("\n\ntiming cache hit — reused existing index");
+    expect(outlineResult.content?.[0]?.text).toContain(
+      "\n\ntiming cache hit — reused existing index",
+    );
   });
 });
 
@@ -448,8 +493,8 @@ describe("ignore rules", () => {
     const searchTool = tools.get("ts_code_search_search");
     const cwd = makeFilesProject({
       ".gitignore": "generated/\n",
-      "src/visible.ts": 'export function visible() { return true; }\n',
-      "generated/hidden.ts": 'export function hidden() { return false; }\n',
+      "src/visible.ts": "export function visible() { return true; }\n",
+      "generated/hidden.ts": "export function hidden() { return false; }\n",
     });
     createdDirs.push(cwd);
 

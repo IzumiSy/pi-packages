@@ -35,7 +35,12 @@ type ImportLikeDeclaration = ImportDeclaration | ExportDeclaration;
 type ParameterizedNode = Node & { getParameters(): ParameterDeclaration[] };
 type JsDocNode = { getJsDocs?: () => JSDoc[] };
 type EntryNode = Node & { getNameNode?: () => Node | undefined };
-type ObjectMemberEntry = { node: Node; name: string; kind: "method" | "property"; propTokens: string[] };
+type ObjectMemberEntry = {
+  node: Node;
+  name: string;
+  kind: "method" | "property";
+  propTokens: string[];
+};
 
 const storeByCwd = new Map<string, SearchStore>();
 
@@ -69,11 +74,8 @@ function buildStore(cwd: string): SearchStore {
   const ignoreMatcher = createIgnoreMatcher(cwd);
   const createIgnoreMatcherMs = elapsedMs(createIgnoreMatcherStartedAt);
 
-  const { entries, importEdges, collectIndexDataMs, collectEntriesMs, collectImportEdgesMs } = collectIndexData(
-    project,
-    cwd,
-    ignoreMatcher,
-  );
+  const { entries, importEdges, collectIndexDataMs, collectEntriesMs, collectImportEdgesMs } =
+    collectIndexData(project, cwd, ignoreMatcher);
 
   const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
 
@@ -199,7 +201,11 @@ function collectIndexData(project: Project, cwd: string, ignoreMatcher: ReturnTy
   };
 }
 
-function collectSourceEntries(source: SourceFile, cwd: string, importTokens: string[]): IndexEntry[] {
+function collectSourceEntries(
+  source: SourceFile,
+  cwd: string,
+  importTokens: string[],
+): IndexEntry[] {
   const entries: IndexEntry[] = [];
 
   for (const fn of source.getFunctions()) {
@@ -420,7 +426,11 @@ function collectSourceEntries(source: SourceFile, cwd: string, importTokens: str
   return entries;
 }
 
-export function shouldIndexSourceFile(cwd: string, source: SourceFile, ignoreMatcher: ReturnType<typeof ignore>): boolean {
+export function shouldIndexSourceFile(
+  cwd: string,
+  source: SourceFile,
+  ignoreMatcher: ReturnType<typeof ignore>,
+): boolean {
   const absFile = source.getFilePath();
   if (absFile.endsWith(".d.ts")) {
     return false;
@@ -528,7 +538,9 @@ function collectImportedSymbols(declaration: ImportLikeDeclaration): string[] {
 function collectImportTokens(source: SourceFile): string[] {
   return dedupe(
     [
-      ...source.getImportDeclarations().flatMap((declaration) => tokenize(declaration.getModuleSpecifierValue())),
+      ...source
+        .getImportDeclarations()
+        .flatMap((declaration) => tokenize(declaration.getModuleSpecifierValue())),
       ...source
         .getExportDeclarations()
         .flatMap((declaration) => tokenize(declaration.getModuleSpecifierValue?.() ?? "")),
@@ -589,14 +601,22 @@ function collectObjectMembers(declaration: VariableDeclaration): ObjectMemberEnt
 
   for (const member of objectLiteral.getProperties()) {
     if (Node.isMethodDeclaration(member)) {
-      members.push({ node: member, name: member.getName(), kind: "method", propTokens: collectFunctionPropTokens(member) });
+      members.push({
+        node: member,
+        name: member.getName(),
+        kind: "method",
+        propTokens: collectFunctionPropTokens(member),
+      });
       continue;
     }
 
     if (Node.isPropertyAssignment(member)) {
       const memberName = member.getName();
       const initializer = member.getInitializer();
-      if (initializer && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))) {
+      if (
+        initializer &&
+        (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))
+      ) {
         members.push({
           node: member,
           name: memberName,
@@ -651,7 +671,9 @@ function getVariableFunctionLike(declaration: VariableDeclaration): Parameterize
   return undefined;
 }
 
-function getVariableObjectLiteral(declaration: VariableDeclaration): ObjectLiteralExpression | undefined {
+function getVariableObjectLiteral(
+  declaration: VariableDeclaration,
+): ObjectLiteralExpression | undefined {
   const initializer = declaration.getInitializer();
   if (!initializer || !Node.isObjectLiteralExpression(initializer)) {
     return undefined;
@@ -761,7 +783,12 @@ function createEntry(args: {
 function toSearchDocument(entry: IndexEntry): SearchDocument {
   return {
     id: entry.id,
-    nameText: [entry.name.toLowerCase(), entry.qualifiedName.toLowerCase(), entry.nameTokens.join(" "), entry.containerTokens.join(" ")]
+    nameText: [
+      entry.name.toLowerCase(),
+      entry.qualifiedName.toLowerCase(),
+      entry.nameTokens.join(" "),
+      entry.containerTokens.join(" "),
+    ]
       .filter(Boolean)
       .join(" "),
     pathText: entry.pathTokens.join(" "),

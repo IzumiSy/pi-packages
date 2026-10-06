@@ -29,10 +29,14 @@ export function searchEntries(
 
   const queryTokens = tokenize(options.query);
   const strictIdentifierSearch = shouldUseStrictIdentifierSearch(options.query, queryTokens);
-  const primaryResults = store.search.search(normalizedQuery, getSearchOptions(strictIdentifierSearch));
-  const results = strictIdentifierSearch && primaryResults.length === 0
-    ? store.search.search(normalizedQuery, getSearchOptions(false))
-    : primaryResults;
+  const primaryResults = store.search.search(
+    normalizedQuery,
+    getSearchOptions(strictIdentifierSearch),
+  );
+  const results =
+    strictIdentifierSearch && primaryResults.length === 0
+      ? store.search.search(normalizedQuery, getSearchOptions(false))
+      : primaryResults;
   const hits: SearchHit[] = [];
 
   for (const result of results) {
@@ -47,7 +51,14 @@ export function searchEntries(
       continue;
     }
 
-    const ranked = rankEntry(entry, result.score, options.query, queryTokens, options.kind, Boolean(options.explain));
+    const ranked = rankEntry(
+      entry,
+      result.score,
+      options.query,
+      queryTokens,
+      options.kind,
+      Boolean(options.explain),
+    );
     const hit: SearchHit = {
       entry,
       score: ranked.score,
@@ -59,7 +70,12 @@ export function searchEntries(
   }
 
   return hits
-    .sort((a, b) => b.score - a.score || a.entry.file.localeCompare(b.entry.file) || a.entry.line - b.entry.line)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.entry.file.localeCompare(b.entry.file) ||
+        a.entry.line - b.entry.line,
+    )
     .slice(0, options.limit);
 }
 
@@ -127,7 +143,10 @@ export function referenceEntries(
     }
 
     for (const node of referenceNode.findReferencesAsNodes()) {
-      if (node.getSourceFile().getFilePath() === entry.absFile && node.getStart() === referenceNode.getStart()) {
+      if (
+        node.getSourceFile().getFilePath() === entry.absFile &&
+        node.getStart() === referenceNode.getStart()
+      ) {
         continue;
       }
 
@@ -157,7 +176,12 @@ export function referenceEntries(
     .slice(0, options.limit);
 }
 
-function findReferenceTargets(store: SearchStore, cwd: string, symbol: string, file?: string): IndexEntry[] {
+function findReferenceTargets(
+  store: SearchStore,
+  cwd: string,
+  symbol: string,
+  file?: string,
+): IndexEntry[] {
   const compactSymbol = compactText(symbol);
 
   return store.entries.filter((entry) => {
@@ -170,7 +194,10 @@ function findReferenceTargets(store: SearchStore, cwd: string, symbol: string, f
     if (file && !matchesFile(entry, cwd, file)) {
       return false;
     }
-    return compactText(entry.name) === compactSymbol || compactText(entry.qualifiedName) === compactSymbol;
+    return (
+      compactText(entry.name) === compactSymbol ||
+      compactText(entry.qualifiedName) === compactSymbol
+    );
   });
 }
 
@@ -223,19 +250,34 @@ function classifyReferenceKind(node: Node): ReferenceHit["kind"] {
     return "read";
   }
 
-  if (Node.isImportSpecifier(parent) || Node.isImportClause(parent) || Node.isNamespaceImport(parent)) {
+  if (
+    Node.isImportSpecifier(parent) ||
+    Node.isImportClause(parent) ||
+    Node.isNamespaceImport(parent)
+  ) {
     return "import";
   }
   if (Node.isExportSpecifier(parent)) {
     return "export";
   }
-  if (Node.isTypeReference(parent) || Node.isExpressionWithTypeArguments(parent) || Node.isHeritageClause(parent)) {
+  if (
+    Node.isTypeReference(parent) ||
+    Node.isExpressionWithTypeArguments(parent) ||
+    Node.isHeritageClause(parent)
+  ) {
     return "type";
   }
-  if ((Node.isCallExpression(parent) || Node.isNewExpression(parent)) && parent.getExpression() === node) {
+  if (
+    (Node.isCallExpression(parent) || Node.isNewExpression(parent)) &&
+    parent.getExpression() === node
+  ) {
     return "call";
   }
-  if (Node.isBinaryExpression(parent) && parent.getLeft() === node && parent.getOperatorToken().getText().includes("=")) {
+  if (
+    Node.isBinaryExpression(parent) &&
+    parent.getLeft() === node &&
+    parent.getOperatorToken().getText().includes("=")
+  ) {
     return "write";
   }
   if (Node.isPrefixUnaryExpression(parent) || Node.isPostfixUnaryExpression(parent)) {
@@ -279,7 +321,10 @@ function rankEntry(
   const scoreBreakdown = explain ? [{ label: "MiniSearch base", value: baseScore }] : undefined;
   let score = baseScore;
 
-  if (compactText(entry.name) === compactText(rawQuery) || compactText(entry.qualifiedName) === compactText(rawQuery)) {
+  if (
+    compactText(entry.name) === compactText(rawQuery) ||
+    compactText(entry.qualifiedName) === compactText(rawQuery)
+  ) {
     score += addScore(scoreBreakdown, "exact identifier match", 100);
   }
   if (
@@ -294,7 +339,12 @@ function rankEntry(
 
   const matchedTokens = queryTokens.filter((token) => entryTokens.has(token));
   if (matchedTokens.length > 0) {
-    score += addScore(scoreBreakdown, "matched query tokens", matchedTokens.length * 4, matchedTokens.join(", "));
+    score += addScore(
+      scoreBreakdown,
+      "matched query tokens",
+      matchedTokens.length * 4,
+      matchedTokens.join(", "),
+    );
   }
   if (entry.exported) {
     score += addScore(scoreBreakdown, "exported", 8);
@@ -437,7 +487,10 @@ export function formatSearchResults(
   }
 
   return appendTimingLine(
-    [`${hits.length} TS/TSX symbol matches for "${query}":`, ...hits.map((hit, index) => formatHit(hit, index, explain))].join("\n"),
+    [
+      `${hits.length} TS/TSX symbol matches for "${query}":`,
+      ...hits.map((hit, index) => formatHit(hit, index, explain)),
+    ].join("\n"),
     timingLine,
   );
 }
@@ -455,7 +508,10 @@ export function formatOutlineResults(
   }
 
   return appendTimingLine(
-    [`${entries.length} indexed symbols in ${file}:`, ...entries.map((entry) => formatEntryLine(entry))].join("\n"),
+    [
+      `${entries.length} indexed symbols in ${file}:`,
+      ...entries.map((entry) => formatEntryLine(entry)),
+    ].join("\n"),
     timingLine,
   );
 }
@@ -483,7 +539,10 @@ export function formatExportResults(
     );
   }
 
-  return appendTimingLine([header, ...hits.map((hit, index) => formatHit(hit, index))].join("\n"), timingLine);
+  return appendTimingLine(
+    [header, ...hits.map((hit, index) => formatHit(hit, index))].join("\n"),
+    timingLine,
+  );
 }
 
 export function formatImporterResults(
@@ -494,7 +553,9 @@ export function formatImporterResults(
   cacheHit = false,
   timings?: SearchStoreBuildTimings,
 ): string {
-  const target = [symbol ? `symbol "${symbol}"` : undefined, file ? `file ${file}` : undefined].filter(Boolean).join(" in ");
+  const target = [symbol ? `symbol "${symbol}"` : undefined, file ? `file ${file}` : undefined]
+    .filter(Boolean)
+    .join(" in ");
   const header = `${hits.length} TS/TSX importers for ${target}:`;
   const timingLine = getTimingLine(timing, cacheHit, timings);
 
@@ -519,7 +580,10 @@ export function formatReferenceResults(
     return appendTimingLine(`No TS/TSX references found for ${target}.`, timingLine);
   }
 
-  return appendTimingLine([`${hits.length} TS/TSX references for ${target}:`, ...hits.map(formatReferenceHit)].join("\n"), timingLine);
+  return appendTimingLine(
+    [`${hits.length} TS/TSX references for ${target}:`, ...hits.map(formatReferenceHit)].join("\n"),
+    timingLine,
+  );
 }
 
 function formatHit(hit: SearchHit, index: number, explain = false): string {
@@ -532,7 +596,11 @@ function formatHit(hit: SearchHit, index: number, explain = false): string {
 }
 
 function formatEntryLine(entry: IndexEntry, index?: number): string {
-  const flags = [entry.kind, entry.exported ? "export" : undefined, entry.defaultExport ? "default" : undefined]
+  const flags = [
+    entry.kind,
+    entry.exported ? "export" : undefined,
+    entry.defaultExport ? "default" : undefined,
+  ]
     .filter(Boolean)
     .join(", ");
   const prefix = typeof index === "number" ? `${index}. ` : "- ";
@@ -555,7 +623,11 @@ function appendTimingLine(text: string, timingLine?: string): string {
   return timingLine ? `${text}\n\n${timingLine}` : text;
 }
 
-function getTimingLine(timing: boolean, cacheHit: boolean, timings?: SearchStoreBuildTimings): string | undefined {
+function getTimingLine(
+  timing: boolean,
+  cacheHit: boolean,
+  timings?: SearchStoreBuildTimings,
+): string | undefined {
   if (!timing) {
     return undefined;
   }
@@ -567,7 +639,10 @@ function getTimingLine(timing: boolean, cacheHit: boolean, timings?: SearchStore
 
 function formatScoreBreakdown(scoreBreakdown: SearchScoreContribution[]): string {
   return scoreBreakdown
-    .map((part) => `${part.label} ${formatSignedScore(part.value)}${part.detail ? ` (${part.detail})` : ""}`)
+    .map(
+      (part) =>
+        `${part.label} ${formatSignedScore(part.value)}${part.detail ? ` (${part.detail})` : ""}`,
+    )
     .join("; ");
 }
 

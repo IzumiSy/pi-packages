@@ -19,8 +19,8 @@ Guardrails for bash tool usage inside Pi.
 
 ## Included tools
 
-| Tool | Purpose |
-| --- | --- |
-| `command_gate_list_rules` | List effective bash command-gate rules and overrides. |
-| `command_gate_add_rule` | Add a global bash command-gate rule. |
+| Tool                        | Purpose                                                       |
+| --------------------------- | ------------------------------------------------------------- |
+| `command_gate_list_rules`   | List effective bash command-gate rules and overrides.         |
+| `command_gate_add_rule`     | Add a global bash command-gate rule.                          |
 | `command_gate_disable_rule` | Disable a rule for the current session, project, or globally. |

@@ -18,7 +18,15 @@ export const SEARCH_KINDS = [
   "export",
 ] as const;
 const SEARCH_KIND_SET = new Set<string>(SEARCH_KINDS);
-export const DEFAULT_IGNORE_RULES = ["node_modules/", "dist/", "build/", "coverage/", ".next/", ".turbo/", "*.d.ts"];
+export const DEFAULT_IGNORE_RULES = [
+  "node_modules/",
+  "dist/",
+  "build/",
+  "coverage/",
+  ".next/",
+  ".turbo/",
+  "*.d.ts",
+];
 
 export type SearchKind = (typeof SEARCH_KINDS)[number];
 
@@ -164,5 +172,10 @@ export function compactText(value: string): string {
 }
 
 export function firstLine(value: string): string {
-  return value.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
+  return (
+    value
+      .split("\n")
+      .map((line) => line.trim())
+      .find(Boolean) ?? ""
+  );
 }
