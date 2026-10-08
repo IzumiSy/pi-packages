@@ -9,8 +9,8 @@ import type {
   ReferenceHit,
   SearchScoreContribution,
   SearchStoreBuildTimings,
-} from "../extensions/pi-ts-code-search/search-shared.ts";
-import codeSearcher from "../extensions/pi-ts-code-search/main.ts";
+} from "../extensions/ts-code-search/search-shared.ts";
+import codeSearcher from "../extensions/ts-code-search/main.ts";
 
 type ToolResult = {
   content?: Array<{ type: string; text: string }>;
@@ -70,7 +70,7 @@ function makeProject(functionName: string) {
 }
 
 function makeFilesProject(files: Record<string, string>) {
-  const cwd = mkdtempSync(join(tmpdir(), "pi-ts-code-search-"));
+  const cwd = mkdtempSync(join(tmpdir(), "ts-code-search-"));
 
   for (const [file, content] of Object.entries(files)) {
     const fullPath = join(cwd, file);
