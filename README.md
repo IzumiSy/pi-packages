@@ -17,5 +17,6 @@ pi install git:github.com/IzumiSy/pi-packages
 | [`git-status-widget`](./extensions/git-status-widget/README.md) | Shows current git status entries for the working tree, including staged, unstaged, and untracked files.    |
 | [`command-gate`](./extensions/command-gate/README.md)           | Blocks or asks for confirmation on matching bash commands, and provides tools to inspect and manage rules. |
 | [`ts-code-search`](./extensions/ts-code-search/README.md)       | Searches TypeScript/TSX symbols, exports, importers, and references using an in-memory ts-morph index.     |
+| [`project-notes`](./extensions/project-notes/README.md)         | Keeps personal Markdown notes outside the repository, shared across clones with the same origin.           |
 
 For development notes, see [DEVELOPMENT.md](./DEVELOPMENT.md).
