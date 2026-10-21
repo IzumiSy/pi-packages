@@ -39,7 +39,8 @@
       "./extensions/tiggy/main.ts",
       "./extensions/git-status-widget/main.ts",
       "./extensions/command-gate/main.ts",
-      "./extensions/ts-code-search/main.ts"
+      "./extensions/ts-code-search/main.ts",
+      "./extensions/project-notes/main.ts"
     ],
     "skills": [
       "./skills"
