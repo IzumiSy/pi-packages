@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { initTheme, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import tiggyExtension from "../extensions/tiggy/main";
 import {
@@ -11,12 +11,14 @@ import {
   sanitizePreviewText,
   wrapBlock,
 } from "../extensions/tiggy/core";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const ENTER = "\r";
 const ESCAPE = "\u001b";
 const PAGE_UP = "\u001b[5~";
 const PAGE_DOWN = "\u001b[6~";
+
+beforeAll(() => initTheme());
 
 interface RenderController {
   render(width: number): string[];
