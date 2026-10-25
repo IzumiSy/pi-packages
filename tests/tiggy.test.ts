@@ -1,5 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import tiggyExtension from "../extensions/tiggy/main";
 import {
   countNonEmptyLines,
@@ -34,6 +35,7 @@ interface MountedTiggy {
   close(): Promise<void>;
   commandPromise: Promise<void>;
   execCalls: ExecCall[];
+  customOptions: unknown;
 }
 
 function makeExecResult(stdout: string, stderr = "", code = 0) {
@@ -63,20 +65,28 @@ async function waitForController(
   throw new Error("tiggy controller was not mounted");
 }
 
-async function mountTiggy(commandName = "tiggy"): Promise<MountedTiggy> {
+async function mountTiggy(
+  commandName = "tiggy",
+  terminal = { columns: 140, rows: 20 },
+  fixtures: { commitHash?: string; commitPreview?: string; commitLog?: string } = {},
+): Promise<MountedTiggy> {
   const execCalls: ExecCall[] = [];
   const commandHandlers = new Map<string, (args: string, ctx: unknown) => Promise<void>>();
   let controller: RenderController | undefined;
   let done: (() => void) | undefined;
+  let customOptions: unknown;
 
-  const commitPreview = Array.from({ length: 30 }, (_, index) => {
-    if (index === 0) return "commit abc1234";
-    if (index === 1) return "Author: Alice";
-    if (index === 2) return "Date: 2026-06-25";
-    if (index === 10) return "needle first";
-    if (index === 20) return "needle second";
-    return `line ${index + 1}`;
-  }).join("\n");
+  const commitHash = fixtures.commitHash ?? "abc1234";
+  const commitPreview =
+    fixtures.commitPreview ??
+    Array.from({ length: 30 }, (_, index) => {
+      if (index === 0) return `commit ${commitHash}`;
+      if (index === 1) return "Author: Alice";
+      if (index === 2) return "Date: 2026-06-25";
+      if (index === 10) return "needle first";
+      if (index === 20) return "needle second";
+      return `line ${index + 1}`;
+    }).join("\n");
 
   const secondCommitPreview = [
     "commit def5678",
@@ -104,10 +114,11 @@ async function mountTiggy(commandName = "tiggy"): Promise<MountedTiggy> {
       }
       if (args[0] === "log") {
         return makeExecResult(
-          [
-            "abc1234\t2026-06-25\tAlice\tfeat: ship tiggy",
-            "def5678\t2026-06-24\tBob\tfix: preview search",
-          ].join("\n"),
+          fixtures.commitLog ??
+            [
+              `${commitHash}\t2026-06-25\tAlice\tfeat: ship tiggy`,
+              "def5678\t2026-06-24\tBob\tfix: preview search",
+            ].join("\n"),
         );
       }
       if (args[0] === "diff" && args[1] === "--cached") {
@@ -121,7 +132,7 @@ async function mountTiggy(commandName = "tiggy"): Promise<MountedTiggy> {
       if (args[0] === "ls-files") {
         return makeExecResult("notes.txt\n");
       }
-      if (args[0] === "show" && args.at(-1) === "abc1234") {
+      if (args[0] === "show" && args.at(-1) === commitHash) {
         return makeExecResult(commitPreview);
       }
       if (args[0] === "show" && args.at(-1) === "def5678") {
@@ -147,7 +158,7 @@ async function mountTiggy(commandName = "tiggy"): Promise<MountedTiggy> {
   });
 
   const tui = {
-    terminal: { columns: 140, rows: 20 },
+    terminal,
     requestRender: () => {},
   };
 
@@ -163,7 +174,9 @@ async function mountTiggy(commandName = "tiggy"): Promise<MountedTiggy> {
           keybindings: unknown,
           done: () => void,
         ) => RenderController,
+        options: unknown,
       ) => {
+        customOptions = options;
         controller = await factory(tui, createTheme(), {}, () => done?.());
         return closePromise;
       },
@@ -186,6 +199,7 @@ async function mountTiggy(commandName = "tiggy"): Promise<MountedTiggy> {
     },
     commandPromise,
     execCalls,
+    customOptions,
   };
 }
 
@@ -270,10 +284,193 @@ describe("tiggy core", () => {
 });
 
 describe("tiggy TUI", () => {
+  it.each(["tiggy", "diff"])("covers the previous screen when opening /%s", async (commandName) => {
+    const terminal = { columns: 140, rows: 20 };
+    const tiggy = await mountTiggy(commandName, terminal);
+
+    expect(tiggy.customOptions).toEqual({
+      overlay: true,
+      overlayOptions: { width: "100%", maxHeight: "100%", anchor: "top-left" },
+    });
+
+    const expectFullScreen = () => {
+      for (const columns of [140, 32]) {
+        for (const rows of [20, 40]) {
+          Object.assign(terminal, { columns, rows });
+          const lines = tiggy.render().split("\n");
+          expect(lines).toHaveLength(rows);
+          expect(lines[0]).toMatch(/^ tiggy • /);
+          expect(lines[1]).toContain("3 items");
+          expect(lines[2]).toBe("─".repeat(columns));
+          expect(lines.at(-2)).toBe("─".repeat(columns));
+          expect(lines.at(-1)).toMatch(/^ (j\/k or ↑↓|type to search)/);
+        }
+      }
+    };
+
+    expectFullScreen();
+    await tiggy.press(ENTER);
+    await tiggy.press("/");
+    expectFullScreen();
+    await tiggy.press(ESCAPE);
+    await tiggy.close();
+  });
+
+  it.each([140, 32])(
+    "pins the preview position to the pane bottom at width %s",
+    async (columns) => {
+      const terminal = { columns, rows: 20 };
+      const tiggy = await mountTiggy("tiggy", terminal);
+
+      const expectPreviewFooter = (lineCount: number) => {
+        const lines = tiggy.render().split("\n");
+        expect(lines).toHaveLength(terminal.rows);
+        const paneFooter = lines.at(-3) ?? "";
+        const previewStatus = columns < 40 ? paneFooter : paneFooter.split("│")[1];
+        expect(previewStatus?.trim()).toMatch(new RegExp(`^preview \\d+-\\d+/${lineCount}$`));
+        if (columns >= 40) {
+          expect(paneFooter.split("│")[0]).toBe(
+            " ".repeat(visibleWidth(lines[3]?.split("│")[0] ?? "")),
+          );
+        }
+        expect(lines.at(-1)).not.toMatch(/preview \d/);
+      };
+
+      await tiggy.press("j");
+      await tiggy.press(ENTER);
+      expectPreviewFooter(30);
+      await tiggy.press(PAGE_DOWN);
+      expectPreviewFooter(30);
+
+      await tiggy.press("/");
+      expectPreviewFooter(30);
+      for (const key of "needle") await tiggy.press(key);
+      await tiggy.press(ENTER);
+      expectPreviewFooter(30);
+
+      await tiggy.press("q");
+      expect(tiggy.render()).not.toMatch(/preview \d/);
+      await tiggy.press("j");
+      await tiggy.press(ENTER);
+      expectPreviewFooter(5);
+      terminal.rows = 40;
+      expectPreviewFooter(5);
+      await tiggy.close();
+    },
+  );
+
+  it.each(["abc1234", "abcdef123456"])(
+    "sizes the list to the date and hash %s",
+    async (commitHash) => {
+      const terminal = { columns: 140, rows: 20 };
+      const tiggy = await mountTiggy("tiggy", terminal, { commitHash });
+      await tiggy.press("j");
+      expect(tiggy.render()).not.toContain("│");
+      await tiggy.press(ENTER);
+
+      for (const columns of [140, 80]) {
+        terminal.columns = columns;
+        const lines = tiggy.render().split("\n");
+        const expectedRow = ` 2026-06-25 ${commitHash} `;
+        expect(visibleWidth(lines[3]?.split("│")[0] ?? "")).toBe(expectedRow.length);
+        expect(lines[4]?.split("│")[0]).toBe(expectedRow);
+        expect(lines[5]?.split("│")[0]?.trim()).toBe("2026-06-24 def5678");
+        expect(lines[3]?.split("│")[1]).toHaveLength(columns - expectedRow.length - 1);
+      }
+
+      await tiggy.press("q");
+      expect(tiggy.render()).not.toContain("│");
+      await tiggy.close();
+    },
+  );
+
+  it("keeps scrolled list rows stationary when opening and closing a preview", async () => {
+    const commitLog = Array.from({ length: 30 }, (_, index) => {
+      const hash = index === 13 ? "abc1234" : `c${String(index).padStart(6, "0")}`;
+      return `${hash}\t2026-06-25\tAlice\tcommit ${index}`;
+    }).join("\n");
+    const tiggy = await mountTiggy("tiggy", { columns: 140, rows: 20 }, { commitLog });
+    for (let index = 0; index < 14; index++) await tiggy.press("j");
+    const listRows = () =>
+      tiggy
+        .render()
+        .split("\n")
+        .slice(3, -3)
+        .map((line) => line.split("│")[0]?.match(/^ \S+ \S+/)?.[0]);
+    const before = listRows();
+    expect(before).toHaveLength(14);
+    expect(before[0]).toBe(" 2026-06-25 c000006");
+
+    await tiggy.press(ENTER);
+    expect(listRows()).toEqual(before);
+    expect(tiggy.render()).toContain("commit abc1234");
+    await tiggy.press("q");
+    expect(listRows()).toEqual(before);
+    await tiggy.close();
+  });
+
+  it("uses the wider preview when jumping between search matches", async () => {
+    const commitPreview = Array.from({ length: 30 }, (_, index) => {
+      if (index === 0) return "x".repeat(55);
+      return index === 10 || index === 20 ? `needle ${index}` : `line ${index + 1}`;
+    }).join("\n");
+    const tiggy = await mountTiggy("tiggy", { columns: 80, rows: 20 }, { commitPreview });
+    await tiggy.press("j");
+    await tiggy.press(ENTER);
+    expect(tiggy.render()).toContain("preview 1-13/30");
+
+    await tiggy.press("/");
+    for (const key of "needle") await tiggy.press(key);
+    tiggy.render();
+    await tiggy.press(ENTER);
+    await tiggy.press("n");
+    expect(tiggy.render()).toContain("2/2 matches");
+    expect(tiggy.render()).toContain("needle 20");
+    await tiggy.press("q");
+    await tiggy.close();
+  });
+
+  it.each([140, 80, 40, 32])("hides the preview pane until opened at width %s", async (columns) => {
+    const tiggy = await mountTiggy("tiggy", { columns, rows: 20 });
+    const expectListOnly = () => {
+      const lines = tiggy.render().split("\n");
+      expect(lines).toHaveLength(20);
+      expect(lines[3]?.trim()).toBe("working tree 2 changes");
+      expect(lines.slice(3, -3).every((line) => visibleWidth(line) === columns)).toBe(true);
+      expect(lines[4]).toContain(columns >= 40 ? "feat: ship tiggy" : "feat:");
+      if (columns >= 80) {
+        expect(lines[4]).toContain("Alice");
+        expect(lines[5]).toContain("fix: preview search Bob");
+      }
+      expect(tiggy.render()).not.toContain("│");
+      expect(tiggy.render()).not.toContain("Press Enter to preview.");
+      expect(tiggy.render()).not.toMatch(/preview \d/);
+    };
+
+    expectListOnly();
+    await tiggy.press("j");
+    expectListOnly();
+    expect(tiggy.execCalls.some((call) => ["diff", "show"].includes(call.args[0] ?? ""))).toBe(
+      false,
+    );
+    await tiggy.press(ENTER);
+    expect(tiggy.render()).toContain("commit abc1234");
+    if (columns >= 40) {
+      const lines = tiggy.render().split("\n");
+      expect(lines[3]?.split("│")[0]).toMatch(/^ working tree/);
+      expect(visibleWidth(lines[3]?.split("│")[0] ?? "")).toBe(20);
+      expect(lines[4]?.split("│")[0]).toBe(" 2026-06-25 abc1234 ");
+      expect(lines[3]?.split("│")[1]).toContain("abc1234 •");
+    }
+    await tiggy.press("q");
+    expectListOnly();
+    await tiggy.close();
+  });
+
   it("opens the working tree preview, searches within it, and closes just the preview with q", async () => {
     const tiggy = await mountTiggy();
 
-    expect(tiggy.render()).toContain("Press Enter to preview.");
+    expect(tiggy.render()).not.toContain("Press Enter to preview.");
 
     await tiggy.press(ENTER);
     expect(tiggy.render()).toContain("WORKING TREE");
@@ -290,7 +487,8 @@ describe("tiggy TUI", () => {
     expect(tiggy.render()).toContain("WORKING TREE");
 
     await tiggy.press("q");
-    expect(tiggy.render()).toContain("Press Enter to preview.");
+    expect(tiggy.render()).not.toContain("│");
+    expect(tiggy.render()).not.toContain("WORKING TREE");
 
     await tiggy.close();
   });
@@ -310,13 +508,13 @@ describe("tiggy TUI", () => {
     await tiggy.press("j");
     await tiggy.press(ENTER);
     expect(tiggy.render()).toContain("commit abc1234");
-    expect(tiggy.render()).toContain("preview 1-12/30");
+    expect(tiggy.render()).toContain("preview 1-13/30");
 
     await tiggy.press(PAGE_DOWN);
-    expect(tiggy.render()).toContain("preview 13-24/30");
+    expect(tiggy.render()).toContain("preview 14-26/30");
 
     await tiggy.press(PAGE_UP);
-    expect(tiggy.render()).toContain("preview 1-12/30");
+    expect(tiggy.render()).toContain("preview 1-13/30");
 
     await tiggy.press(ESCAPE);
     await tiggy.commandPromise;
