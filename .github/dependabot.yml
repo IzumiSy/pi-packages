@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      pi:
+        patterns:
+          - "@earendil-works/pi-*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
