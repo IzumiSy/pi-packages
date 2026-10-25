@@ -21,5 +21,6 @@ pi install git:github.com/IzumiSy/pi-packages
 ## Skills
 
 - [`cymbal`](./skills/cymbal/SKILL.md) — Prefer [Cymbal](https://cymbal.sh/) for code search and navigation over grep, ripgrep, and find. Requires the `cymbal` CLI.
+- [`pr-review-plan`](./skills/pr-review-plan/SKILL.md) — Collect unresolved GitHub PR review threads and propose a concrete plan for each. Invoke with `/skill:pr-review-plan`; requires Node.js, `git`, and authenticated `gh`.
 
 For development notes, see [DEVELOPMENT.md](./DEVELOPMENT.md).
