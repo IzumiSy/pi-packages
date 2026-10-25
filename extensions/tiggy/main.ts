@@ -63,6 +63,8 @@ function renderListRow(
   const hashText =
     remainingAfterDate > 0 ? truncateToWidth(` ${item.sha}`, remainingAfterDate, "") : "";
   const hashStyled = theme.fg("success", hashText);
+  if (previewActive) return finishRow(`${prefix}${dateStyled}${hashStyled}`);
+
   const remainingAfterHash = Math.max(0, remainingAfterDate - visibleWidth(hashText));
   const subjectText =
     remainingAfterHash > 0 ? truncateToWidth(` ${item.subject}`, remainingAfterHash, "") : "";
@@ -238,6 +240,10 @@ export default function tiggyExtension(pi: ExtensionAPI) {
       return;
     }
 
+    const fullscreen = {
+      overlay: true,
+      overlayOptions: { width: "100%", maxHeight: "100%", anchor: "top-left" },
+    } as const;
     await ctx.ui.custom<void>((tui, theme, _kb, done) => {
       const { openInitialPreview = false } = options;
       let currentData = data;
@@ -354,12 +360,25 @@ export default function tiggyExtension(pi: ExtensionAPI) {
         );
       };
       const getSearchModeActive = () => !searchActive && lastSearchQuery !== "";
+      const getListWidth = (availableWidth: number) =>
+        Math.min(
+          Math.ceil(availableWidth / 2),
+          currentData.items.reduce(
+            (width, item) =>
+              Math.max(
+                width,
+                visibleWidth(
+                  item.type === "commit" ? ` ${item.date} ${item.sha} ` : ` ${item.label} `,
+                ),
+              ),
+            1,
+          ),
+        );
       const getPreviewWidth = () => {
         const width = Math.max(1, tui.terminal.columns);
         if (width < 40) return width;
         const availableWidth = Math.max(2, width - visibleWidth("│"));
-        const leftWidth = Math.floor(availableWidth / 2);
-        return Math.max(1, availableWidth - leftWidth);
+        return Math.max(1, availableWidth - getListWidth(availableWidth));
       };
       const jumpSearchMatch = (direction: 1 | -1) => {
         const query = (searchActive ? searchInput.getValue() : lastSearchQuery).trim();
@@ -473,12 +492,13 @@ export default function tiggyExtension(pi: ExtensionAPI) {
         render(width: number) {
           const items = clampSelection();
           const previewItem = getPreviewItem();
-          const totalRows = Math.max(12, tui.terminal.rows - 1);
+          const totalRows = Math.max(12, tui.terminal.rows);
           const narrowLayout = width < 40;
           const divider = theme.fg("borderMuted", "│");
           const availableWidth = Math.max(2, width - visibleWidth(divider));
-          const leftWidth = narrowLayout ? width : Math.floor(availableWidth / 2);
-          const previewWidth = narrowLayout ? width : Math.max(1, availableWidth - leftWidth);
+          const leftWidth = narrowLayout || !activeItemKey ? width : getListWidth(availableWidth);
+          const previewWidth =
+            narrowLayout || !activeItemKey ? width : Math.max(1, availableWidth - leftWidth);
           const previewLines = getWrappedPreviewLines(previewWidth);
           const previewDisplayLines = getHighlightedPreviewLines(previewWidth);
           const searchQuery = getActiveSearchQuery();
@@ -522,11 +542,7 @@ export default function tiggyExtension(pi: ExtensionAPI) {
             loadingItems ? "warning" : loadingPreview ? "warning" : "dim",
             loadingItems ? "reloading…" : loadingPreview ? "loading…" : `${items.length} items`,
           )}${searchStatus}`;
-          const lines = [
-            theme.fg("accent", "─".repeat(width)),
-            title,
-            renderInlineLine(width, ` ${status}`),
-          ];
+          const lines = [title, renderInlineLine(width, ` ${status}`)];
 
           if (banner) {
             lines.push(
@@ -534,10 +550,12 @@ export default function tiggyExtension(pi: ExtensionAPI) {
             );
           }
 
+          lines.push(theme.fg("accent", "─".repeat(width)));
+
           let previewLineCount = previewLines.length;
 
-          if (narrowLayout) {
-            const contentRows = Math.max(4, totalRows - (banner ? 10 : 9));
+          if (narrowLayout && activeItemKey) {
+            const contentRows = Math.max(4, totalRows - (banner ? 7 : 6));
             const listVisibleRows = Math.min(
               Math.max(3, Math.min(8, items.length || 1)),
               Math.max(1, contentRows - 2),
@@ -590,11 +608,11 @@ export default function tiggyExtension(pi: ExtensionAPI) {
               );
             }
           } else {
-            const contentRows = Math.max(4, totalRows - (banner ? 8 : 7));
+            const contentRows = Math.max(4, totalRows - (banner ? 7 : 6));
             const searchRows = searchActive || searchModeActive ? 1 : 0;
             const rightWidth = previewWidth;
             listViewportRows = contentRows;
-            previewViewportRows = Math.max(1, contentRows - searchRows);
+            previewViewportRows = Math.max(1, contentRows - (activeItemKey ? 1 : 0) - searchRows);
             updateSearch(searchMatches);
             previewScroll = Math.max(
               0,
@@ -609,10 +627,6 @@ export default function tiggyExtension(pi: ExtensionAPI) {
             );
             const visibleItems = items.slice(listStart, listStart + contentRows);
 
-            lines.push(
-              `${" ".repeat(leftWidth)}${divider}${renderPreviewHeader(previewItem, rightWidth, theme)}`,
-            );
-
             for (let row = 0; row < contentRows; row++) {
               const item = visibleItems[row];
               const absoluteIndex = listStart + row;
@@ -626,30 +640,41 @@ export default function tiggyExtension(pi: ExtensionAPI) {
                   )
                 : " ".repeat(leftWidth);
               const isSearchRow = (searchActive || searchModeActive) && row === contentRows - 1;
-              const right = isSearchRow
-                ? searchActive
-                  ? renderSearchInputLine(rightWidth)
-                  : renderSearchMatchStatusLine(rightWidth, currentMatchIndex, searchMatches.length)
-                : (() => {
-                    const lineIndex = previewScroll + row;
-                    const rightLine = padLine(previewDisplayLines[lineIndex] ?? "", rightWidth);
-                    return searchMatchLine === lineIndex
-                      ? theme.bg("selectedBg", rightLine)
-                      : rightLine;
-                  })();
-              lines.push(`${left}${divider}${right}`);
+              const right =
+                row === 0
+                  ? renderPreviewHeader(previewItem, rightWidth, theme)
+                  : isSearchRow
+                    ? searchActive
+                      ? renderSearchInputLine(rightWidth)
+                      : renderSearchMatchStatusLine(
+                          rightWidth,
+                          currentMatchIndex,
+                          searchMatches.length,
+                        )
+                    : (() => {
+                        const lineIndex = previewScroll + row - 1;
+                        const rightLine = padLine(previewDisplayLines[lineIndex] ?? "", rightWidth);
+                        return searchMatchLine === lineIndex
+                          ? theme.bg("selectedBg", rightLine)
+                          : rightLine;
+                      })();
+              lines.push(activeItemKey ? `${left}${divider}${right}` : left);
             }
           }
 
-          lines.push("");
           const previewStatus = activeItemKey
             ? theme.fg(
                 "dim",
-                ` • preview ${previewScroll + 1}-${Math.min(previewLineCount, previewScroll + previewViewportRows)}/${previewLineCount}`,
+                `preview ${previewScroll + 1}-${Math.min(previewLineCount, previewScroll + previewViewportRows)}/${previewLineCount}`,
               )
             : "";
-          lines.push(renderInlineLine(width, ` ${help}${previewStatus}`));
+          lines.push(
+            narrowLayout || !activeItemKey
+              ? padLine(previewStatus, width)
+              : `${" ".repeat(leftWidth)}${divider}${padLine(previewStatus, previewWidth)}`,
+          );
           lines.push(theme.fg("accent", "─".repeat(width)));
+          lines.push(renderInlineLine(width, ` ${help}`));
           return lines.map((line) => truncateToWidth(line, width, ""));
         },
         invalidate() {
@@ -814,7 +839,7 @@ export default function tiggyExtension(pi: ExtensionAPI) {
           }
         },
       };
-    });
+    }, fullscreen);
   }
 
   pi.registerCommand("tiggy", {
