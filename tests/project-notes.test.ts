@@ -6,6 +6,7 @@ import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
+  ExtensionToolContext,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { getKeybindings, visibleWidth } from "@earendil-works/pi-tui";
@@ -62,7 +63,7 @@ let commands: Map<string, Command>;
 let events: Map<string, () => void>;
 let ui: ReturnType<typeof makeUI>;
 let api: ReturnType<typeof makeAPI>;
-let ctx: ExtensionCommandContext;
+let ctx: ExtensionCommandContext & ExtensionToolContext;
 
 function makeUI() {
   return {
@@ -112,7 +113,8 @@ beforeEach(async () => {
   ui = makeUI();
   api = makeAPI();
   // Only these context/API fields are used by the extension; actual storage and Git remain real.
-  ctx = { cwd: clone, hasUI: true, ui } as unknown as ExtensionCommandContext;
+  ctx = { cwd: clone, hasUI: true, ui } as unknown as ExtensionCommandContext &
+    ExtensionToolContext;
   projectNotes(api as unknown as ExtensionAPI);
 });
 
