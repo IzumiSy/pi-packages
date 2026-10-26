@@ -23,27 +23,28 @@ Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety ru
 ### 2. Stage and understand the change
 
 - Review staged and unstaged changes before staging. If they appear unrelated to the PR or their inclusion is unclear, ask before proceeding. If they appear to contain secrets or unintended sensitive data, stop and explain the concern.
-- By default, stage tracked changes with `git add -u` from the repository root, including the remaining changes in partially staged files. Honor narrower scopes and leave the index unchanged for staged-only requests. Leave untracked files untouched unless explicitly included.
-- Re-read `git diff --cached` after staging and treat it as the source of truth for the new commit. Stop if it is empty. Read enough related code to write an accurate commit message.
+- Plan cohesive commits at a reviewable granularity. For review fixes, normally align commits with review comments or threads so replies can cite scoped commit SHAs. Keep tightly coupled fixes together rather than forcing one commit per comment.
+- Stage one planned group at a time. Use `git add -u` from the repository root when the whole tracked scope belongs together, or select reviewed paths/hunks when splitting. Include remaining edits in partially staged files within the requested scope. Honor narrower scopes; for staged-only requests, include only the initially staged content. Leave untracked files untouched unless explicitly included.
+- Re-read `git diff --cached` before each commit and treat it as the source of truth for that commit. Stop if it is empty. Read enough related code to write an accurate commit message.
 - If Cymbal is available, read [Cymbal](../cymbal/SKILL.md) and use `cymbal changed` and relevant context or impact queries as supporting evidence. Do not assume its output is limited to staged changes or covers the entire PR; distinguish any unstaged changes from the publication scope.
 - If Cymbal is unavailable or cannot cover the change, continue with Git diffs and source inspection. Do not install it automatically.
-- Sanitize the commit message and description according to `create-pr`. If staged content appears to contain secrets or unintended sensitive data, stop before publishing and explain the concern.
+- Sanitize commit messages and the description according to `create-pr`. If staged content appears to contain secrets or unintended sensitive data, stop before publishing and explain the concern.
 
 ### 3. Commit and push
 
-- Create a concise commit message describing the staged change and make a normal commit from the reviewed index. Do not stage additional changes after step 2, use `git commit -a`, or pass file paths that could include unstaged content.
+- Make a normal commit from each group's reviewed index with a concise, scoped message. Repeat step 2's staging and review for remaining groups. Do not include changes outside the reviewed publication scope, use `git commit -a`, or pass file paths that could include unstaged content.
 - Preserve any remaining unstaged and untracked changes. Do not automatically fix code, stash changes, amend commits, rewrite history, or bypass hooks. If a hook fails or changes the intended staged content, stop and report the state rather than automatically restaging and retrying.
-- Verify the resulting commit matches the intended staged change. Push explicitly to the verified PR head remote and branch without force, and set the upstream to that corresponding remote branch after successful publication. Do not rely on an unverified default push destination.
+- Verify each resulting commit matches its intended staged change before continuing. Once all groups are committed, push explicitly to the verified PR head remote and branch without force, and set the upstream to that corresponding remote branch after successful publication. Do not rely on an unverified default push destination.
 
 ### 4. Refresh the description from the whole PR
 
-- After a successful push, fetch the PR's current metadata, description, commits, and full base-to-head diff using `gh` with the explicit base repository and PR number. Verify the PR head SHA matches the published commit before editing its description.
-- Use the remote PR diff, not the local working tree or only the new commit, as the source of truth for the description. Use Cymbal's relationship information only where it helps explain changes actually included in the PR.
+- After a successful push, fetch the PR's current metadata, description, commits, and full base-to-head diff using `gh` with the explicit base repository and PR number. Verify the PR head SHA matches the published tip commit before editing its description.
+- Use the remote PR diff, not the local working tree or only the new commits, as the source of truth for the description. Use Cymbal's relationship information only where it helps explain changes actually included in the PR.
 - Update the description as a coherent account of the current PR, not an appended per-commit changelog. Preserve valid Motivation and design rationale from the conversation and existing description; remove stale claims and update Summary. Do not invent motivations or decisions from symbol names or diffs alone.
 - Follow the shared PR description reference. Preserve useful human-written context, links, and checklists; do not discard unrelated manual content.
 - Update only the body with `gh pr edit <number> --repo <base-repository> --body-file <path>`. Leave the title, Draft status, base branch, labels, reviewers, and other metadata unchanged.
 
 ### 5. Verify and report
 
-- Read back the PR head SHA and description to verify publication and the body update. Report the commit SHA, PR URL, and main description changes.
+- Read back the PR head SHA and description to verify publication and the body update. Report the commit SHAs, PR URL, and main description changes. For review fixes, identify which comment or thread each commit addresses.
 - If any mutation fails or its outcome is uncertain, inspect the actual Git and PR state before retrying. Report which stages completed: commit, push, and description update. Do not automatically roll back a successful commit or push, create another commit, or repeat an uncertain mutation.
