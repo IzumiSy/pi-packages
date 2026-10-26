@@ -21,6 +21,8 @@ pi install git:github.com/IzumiSy/pi-packages
 
 ## Skills
 
+The PR skills share [a PR description reference](./skills/references/pr-description.md), bundled with this Pi package.
+
 - [`create-pr`](./skills/create-pr/SKILL.md) — Create a GitHub PR with a contextual description, safe branch handling, and sanitized public-facing text. Defaults to a Draft PR. Invoke with `/skill:create-pr`; requires `git` and authenticated `gh`.
 - [`update-pr`](./skills/update-pr/SKILL.md) — Commit staged changes, push them, and refresh an existing PR description from the full PR diff. Invoke with `/skill:update-pr`; requires `git` and authenticated `gh`. Cymbal is optional.
 - [`cymbal`](./skills/cymbal/SKILL.md) — Prefer [Cymbal](https://cymbal.sh/) for code search and navigation over grep, ripgrep, and find. Requires the `cymbal` CLI.

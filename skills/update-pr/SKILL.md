@@ -8,7 +8,7 @@ compatibility: Requires git and authenticated gh CLI. Cymbal is optional.
 
 Commit only staged changes, then update the existing PR description to reflect the whole PR, not just the latest commit.
 
-Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety rules, confidentiality rules, GitHub tooling policy, and description format. Reuse those rules, but do not run its PR creation workflow. An explicit request to run this workflow authorizes commit, push, and description update, subject to those safety rules; discussing the skill or asking for a proposed description does not authorize publication.
+Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety rules, confidentiality rules, and GitHub tooling policy, and [the shared PR description reference](../references/pr-description.md) for the body format and writing rules. Reuse those rules, but do not run the PR creation workflow. An explicit request to run this workflow authorizes commit, push, and description update, subject to those safety rules; discussing the skill or asking for a proposed description does not authorize publication.
 
 ## Workflow
 
@@ -38,7 +38,7 @@ Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety ru
 - After a successful push, fetch the PR's current metadata, description, commits, and full base-to-head diff using `gh` with the explicit base repository and PR number. Verify the PR head SHA matches the published commit before editing its description.
 - Use the remote PR diff, not the local working tree or only the new commit, as the source of truth for the description. Use Cymbal's relationship information only where it helps explain changes actually included in the PR.
 - Update the description as a coherent account of the current PR, not an appended per-commit changelog. Preserve valid Motivation and design rationale from the conversation and existing description; remove stale claims and update Summary. Do not invent motivations or decisions from symbol names or diffs alone.
-- Follow `create-pr`'s Motivation / optional Design Decision / Summary format. Preserve useful human-written context, links, and checklists; do not discard unrelated manual content or add Testing, Notes, or other boilerplate sections unless requested.
+- Follow the shared PR description reference. Preserve useful human-written context, links, and checklists; do not discard unrelated manual content.
 - Update only the body with `gh pr edit <number> --repo <base-repository> --body-file <path>`. Leave the title, Draft status, base branch, labels, reviewers, and other metadata unchanged.
 
 ### 5. Verify and report
