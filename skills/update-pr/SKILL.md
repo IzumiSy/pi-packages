@@ -1,36 +1,38 @@
 ---
 name: update-pr
-description: Commit staged changes, push them to the current working branch, and refresh the existing GitHub PR description using the full PR diff and change-impact context. Use when asked to commit and push staged changes and update an existing PR. Does not create a new PR.
+description: Stage unstaged tracked changes, commit and push them to the current working branch, and refresh the existing GitHub PR description using the full PR diff and change-impact context. Use when asked to update an existing PR with local changes. Does not create a new PR.
 compatibility: Requires git and authenticated gh CLI. Cymbal is optional.
 ---
 
 # Update PR
 
-Commit only staged changes, then update the existing PR description to reflect the whole PR, not just the latest commit.
+Stage unstaged tracked changes and commit the resulting index, then update the existing PR description to reflect the whole PR, not just the latest commit. Honor explicit requests to commit only staged changes or a narrower scope; leave untracked files untouched unless explicitly included.
 
-Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety rules, confidentiality rules, and GitHub tooling policy, and [the shared PR description reference](../references/pr-description.md) for the body format and writing rules. Reuse those rules, but do not run the PR creation workflow. An explicit request to run this workflow authorizes commit, push, and description update, subject to those safety rules; discussing the skill or asking for a proposed description does not authorize publication.
+Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety rules, confidentiality rules, and GitHub tooling policy, and [the shared PR description reference](../references/pr-description.md) for the body format and writing rules. Reuse those rules, but do not run the PR creation workflow. An explicit request to run this workflow authorizes staging tracked changes, commit, push, and description update, subject to those safety rules; discussing the skill or asking for a proposed description does not authorize publication.
 
 ## Workflow
 
 ### 1. Establish the target before committing
 
-- Read repository instructions and inspect the working-tree status, current branch, remotes, upstream, and staged diff (`git diff --cached`). Stop if there are no staged changes or HEAD is detached.
+- Read repository instructions and inspect the working-tree status, current branch, remotes, upstream, staged diff (`git diff --cached`), and unstaged diff (`git diff`). Stop if HEAD is detached or there are no changes within the requested scope; an empty index alone is not a reason to stop.
 - Use `gh` to identify the open PR for the current branch. Verify its base repository and branch, head repository and branch, and current description. Account for fork PRs: the push destination must be the PR's head repository, not necessarily its base repository.
 - If no open PR exists, stop and suggest `create-pr`; do not create one. If the PR or push destination is ambiguous, ask before committing.
 - Determine the destination repository's default branch and the head branch's protection status, applying the safety rules from `create-pr`. Resolve any required confirmation before committing.
 - Refresh the intended remote-tracking branch and inspect existing unpushed commits. They will also be published; if their inclusion is not clearly authorized, ask. If local and remote histories have diverged or the remote is ahead, stop rather than automatically pulling, rebasing, or force-pushing.
 
-### 2. Understand the staged change
+### 2. Stage and understand the change
 
-- Treat `git diff --cached` as the source of truth for the new commit, including partially staged files. Read enough related code to write an accurate commit message.
+- Review staged and unstaged changes before staging. If they appear unrelated to the PR or their inclusion is unclear, ask before proceeding. If they appear to contain secrets or unintended sensitive data, stop and explain the concern.
+- Stage unstaged tracked changes with `git add -u` from the repository root, including the remaining changes in partially staged files. If the user explicitly limits the scope, stage only that scope or leave the index unchanged for a staged-only request. Do not automatically add untracked files.
+- Re-read `git diff --cached` after staging and treat it as the source of truth for the new commit. Stop if it is empty. Read enough related code to write an accurate commit message.
 - If Cymbal is available, read [Cymbal](../cymbal/SKILL.md) and use `cymbal changed` and relevant context or impact queries as supporting evidence. Do not assume its output is limited to staged changes or covers the entire PR; distinguish any unstaged changes from the publication scope.
 - If Cymbal is unavailable or cannot cover the change, continue with Git diffs and source inspection. Do not install it automatically.
 - Sanitize the commit message and description according to `create-pr`. If staged content appears to contain secrets or unintended sensitive data, stop before publishing and explain the concern.
 
 ### 3. Commit and push
 
-- Create a concise commit message describing the staged change and make a normal commit from the existing index. Do not stage additional files, use `git commit -a`, or pass file paths that could include unstaged content.
-- Preserve unstaged and untracked changes. Do not automatically fix code, stash changes, amend commits, rewrite history, or bypass hooks. If a hook fails or changes the intended staged content, stop and report the state rather than automatically restaging and retrying.
+- Create a concise commit message describing the staged change and make a normal commit from the reviewed index. Do not stage additional changes after step 2, use `git commit -a`, or pass file paths that could include unstaged content.
+- Preserve any remaining unstaged and untracked changes. Do not automatically fix code, stash changes, amend commits, rewrite history, or bypass hooks. If a hook fails or changes the intended staged content, stop and report the state rather than automatically restaging and retrying.
 - Verify the resulting commit matches the intended staged change. Push explicitly to the verified PR head remote and branch without force, and set the upstream to that corresponding remote branch after successful publication. Do not rely on an unverified default push destination.
 
 ### 4. Refresh the description from the whole PR
