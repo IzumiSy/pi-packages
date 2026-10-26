@@ -6,7 +6,7 @@ compatibility: Requires git and authenticated gh CLI. Cymbal is optional.
 
 # Update PR
 
-Stage unstaged tracked changes and commit the resulting index, then update the existing PR description to reflect the whole PR, not just the latest commit. Honor explicit requests to commit only staged changes or a narrower scope; leave untracked files untouched unless explicitly included.
+Publish local changes to an existing PR and refresh its description from the full published diff.
 
 Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety rules, confidentiality rules, and GitHub tooling policy, and [the shared PR description reference](../references/pr-description.md) for the body format and writing rules. Reuse those rules, but do not run the PR creation workflow. An explicit request to run this workflow authorizes staging tracked changes, commit, push, and description update, subject to those safety rules; discussing the skill or asking for a proposed description does not authorize publication.
 
@@ -23,7 +23,7 @@ Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety ru
 ### 2. Stage and understand the change
 
 - Review staged and unstaged changes before staging. If they appear unrelated to the PR or their inclusion is unclear, ask before proceeding. If they appear to contain secrets or unintended sensitive data, stop and explain the concern.
-- Stage unstaged tracked changes with `git add -u` from the repository root, including the remaining changes in partially staged files. If the user explicitly limits the scope, stage only that scope or leave the index unchanged for a staged-only request. Do not automatically add untracked files.
+- By default, stage tracked changes with `git add -u` from the repository root, including the remaining changes in partially staged files. Honor narrower scopes and leave the index unchanged for staged-only requests. Leave untracked files untouched unless explicitly included.
 - Re-read `git diff --cached` after staging and treat it as the source of truth for the new commit. Stop if it is empty. Read enough related code to write an accurate commit message.
 - If Cymbal is available, read [Cymbal](../cymbal/SKILL.md) and use `cymbal changed` and relevant context or impact queries as supporting evidence. Do not assume its output is limited to staged changes or covers the entire PR; distinguish any unstaged changes from the publication scope.
 - If Cymbal is unavailable or cannot cover the change, continue with Git diffs and source inspection. Do not install it automatically.
