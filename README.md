@@ -22,6 +22,7 @@ pi install git:github.com/IzumiSy/pi-packages
 ## Skills
 
 - [`create-pr`](./skills/create-pr/SKILL.md) — Create a GitHub PR with a contextual description, safe branch handling, and sanitized public-facing text. Defaults to a Draft PR. Invoke with `/skill:create-pr`; requires `git` and authenticated `gh`.
+- [`update-pr`](./skills/update-pr/SKILL.md) — Commit staged changes, push them, and refresh an existing PR description from the full PR diff. Invoke with `/skill:update-pr`; requires `git` and authenticated `gh`. Cymbal is optional.
 - [`cymbal`](./skills/cymbal/SKILL.md) — Prefer [Cymbal](https://cymbal.sh/) for code search and navigation over grep, ripgrep, and find. Requires the `cymbal` CLI.
 - [`permission-handoff`](./skills/permission-handoff/SKILL.md) — Guides permission-error recovery through `request_command_handoff`, without automatically retrying or escalating privileges.
 - [`pr-review-plan`](./skills/pr-review-plan/SKILL.md) — Collect unresolved GitHub PR review threads and propose a concrete plan for each. Invoke with `/skill:pr-review-plan`; requires Node.js, `git`, and authenticated `gh`.
