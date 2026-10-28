@@ -17,7 +17,7 @@ Before proceeding, read [Create PR](../create-pr/SKILL.md) for its Git safety ru
 - Read repository instructions and inspect the working-tree status, current branch, remotes, upstream, staged diff (`git diff --cached`), and unstaged diff (`git diff`). Stop if HEAD is detached or there are no changes within the requested scope; an empty index alone is not a reason to stop.
 - Use `gh` to identify the open PR for the current branch. Verify its base repository and branch, head repository and branch, and current description. Account for fork PRs: the push destination must be the PR's head repository, not necessarily its base repository.
 - If no open PR exists, stop and suggest `create-pr`; do not create one. If the PR or push destination is ambiguous, ask before committing.
-- Determine the destination repository's default branch and the head branch's protection status, applying the safety rules from `create-pr`. Resolve any required confirmation before committing.
+- Determine the destination repository's default branch, applying the safety rules from `create-pr`. Resolve any required confirmation before committing.
 - Refresh the intended remote-tracking branch and inspect existing unpushed commits. They will also be published; if their inclusion is not clearly authorized, ask. If local and remote histories have diverged or the remote is ahead, stop rather than automatically pulling, rebasing, or force-pushing.
 
 ### 2. Stage and understand the change

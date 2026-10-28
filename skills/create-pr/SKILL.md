@@ -23,7 +23,7 @@ compatibility: Requires git and authenticated gh CLI for PR creation.
 
 ## Git safety
 
-- Before pushing, determine the default branch and protection status. If either cannot be determined confidently, stop and ask.
+- Before pushing, determine the default branch. If it cannot be determined confidently, stop and ask.
 - Never push directly to the default branch or any branch known to be protected without explicit user confirmation in the current conversation.
 - If the push target is unclear, or the current branch tracks the default branch or another branch known to be protected, stop and ask before pushing.
 - A working branch may start from the default branch, but must not track the default branch or another branch known to be protected.
