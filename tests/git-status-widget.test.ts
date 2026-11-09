@@ -180,10 +180,10 @@ describe("git-status-widget display", () => {
     expect(app.exec).toHaveBeenCalledOnce();
   });
 
-  it.each([10, 20, 40])(
+  it.each([10, 11, 20, 40, 80])(
     "preserves the border and overflow count within half of %s rows",
     async (rows) => {
-      const app = mount(Array.from({ length: 15 }, (_, index) => ` M file-${index}.ts`).join("\n"));
+      const app = mount(Array.from({ length: 60 }, (_, index) => ` M file-${index}.ts`).join("\n"));
       app.tui.terminal.rows = rows;
       await app.emit("session_start");
       const lines = app.lines().map(stripTerminalSequences);
@@ -191,11 +191,24 @@ describe("git-status-widget display", () => {
       expect(lines[0]).toMatch(/^╭─+╮$/);
       expect(lines.at(-1)).toMatch(/^╰─+╯$/);
       const shown = lines.filter((line) => line.includes("file-")).length;
-      expect(shown).toBeGreaterThan(0);
-      expect(shown).toBeLessThanOrEqual(8);
-      expect(lines.join("\n")).toContain(`… +${15 - shown} more`);
+      expect(shown).toBe(Math.floor(rows / 2) - 4);
+      expect(lines.join("\n")).toContain(`… +${60 - shown} more`);
     },
   );
+
+  it("shows all files that fit and adjusts the file count on resize without refetching", async () => {
+    const app = mount(Array.from({ length: 17 }, (_, index) => ` M file-${index}.ts`).join("\n"));
+    await app.emit("session_start");
+    for (const rows of [40, 20, 40]) {
+      app.tui.terminal.rows = rows;
+      const lines = app.lines().map(stripTerminalSequences);
+      expect(lines.length).toBe(Math.floor(rows / 2));
+      expect(lines.filter((line) => line.includes("file-")).length).toBe(rows === 40 ? 17 : 6);
+      if (rows === 40) expect(lines.join("\n")).not.toContain(" more");
+      else expect(lines.join("\n")).toContain("… +11 more");
+    }
+    expect(app.exec).toHaveBeenCalledOnce();
+  });
 
   it("hides only on narrow or short terminals and can become visible again after resize", async () => {
     const app = mount();
@@ -309,6 +322,23 @@ describe("git-status-widget display", () => {
       expect(app.ui.notify).not.toHaveBeenCalled();
     },
   );
+
+  it.each([
+    ["tui", "widget"],
+    ["rpc", "widget"],
+    ["rpc", "panel"],
+  ])("keeps the eight-file widget limit in %s mode with %s display", async (mode, display) => {
+    writeFileSync(configPath, JSON.stringify({ display }));
+    const app = mount(
+      Array.from({ length: 12 }, (_, index) => ` M file-${index}.ts`).join("\n"),
+      mode,
+    );
+    await app.emit("session_start");
+    const lines = app.ui.setWidget.mock.calls.at(-1)?.[1] as string[];
+    expect(lines.filter((line) => line.includes("file-")).length).toBe(8);
+    expect(lines.join("\n")).toContain("… +4 more");
+    expect(app.ui.custom).not.toHaveBeenCalled();
+  });
 
   it("uses the RPC widget even when configured for panel", async () => {
     writeFileSync(configPath, JSON.stringify({ display: "panel" }));

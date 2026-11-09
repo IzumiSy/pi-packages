@@ -124,8 +124,7 @@ export default function gitStatusWidgetExtension(pi: ExtensionAPI) {
               if (!panelFiles) return [];
               const theme = ctx.ui.theme;
               const innerWidth = Math.max(0, width - 4);
-              const fileRows = Math.max(0, Math.floor(tui.terminal.rows / 2) - 3);
-              const limit = Math.min(MAX_VISIBLE_FILES, fileRows);
+              const limit = Math.max(0, Math.floor(tui.terminal.rows / 2) - 3);
               const count = Math.max(0, limit - (panelFiles.length > limit ? 1 : 0));
               const lines = [theme.fg("dim", `Git changes (${panelFiles.length})`)];
               for (const file of panelFiles.slice(0, count)) {

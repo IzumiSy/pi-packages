@@ -16,7 +16,7 @@ Passive Git status display with a configurable right-side panel or editor widget
 - Reads `git -c core.quotepath=false status --porcelain=v1` without changing Git configuration
 - Displays staged, unstaged, and untracked files with colored status codes
 - Panel uses 25% of the terminal width at the top right; long paths lose their prefix rather than their filename
-- Shows up to eight files with an overflow count; the panel is also constrained to half the terminal height
+- Panel shows as many files as fit within half the terminal height; the widget shows up to eight files. Both show an overflow count when needed
 - Panel keeps a clean-working-tree indicator visible; the widget hides when clean
 - Hides outside Git repositories, and hides the panel below 80 columns or 10 rows
 - Refreshes after relevant Pi tools and shell commands, plus every five seconds for external edits
