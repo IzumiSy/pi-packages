@@ -1,11 +1,11 @@
 ---
-name: cymbal
-description: Search and navigate codebases with the Cymbal CLI. Use for code exploration, symbol lookup, file discovery, outlines, references, importers, call graphs, and change impact. Prefer Cymbal over grep, ripgrep, and find for these tasks.
+name: code-search
+description: Search and navigate codebases with Cymbal, FFF, and shell fallbacks. Use for code exploration, symbol lookup, file discovery, outlines, references, importers, call graphs, and change impact. Prefer Cymbal first, FFF tools (fffind/ffgrep) second, and rg/grep/find last.
 ---
 
-# Cymbal
+# Code Search
 
-Use `cymbal` as the first choice for code search and navigation, not `grep`, `rg`, or `find`.
+For code search and navigation, prefer `cymbal` → FFF tools (`fffind` / `ffgrep`) → `rg` / `grep` / `find`. Use the first available tool that covers the task; this is a preference order, not a requirement to repeat every search with all three.
 
 ## Setup
 
@@ -64,6 +64,12 @@ Do not use `cymbal ls --names --path src/components`; it fails with `unknown fla
 
 ## Fallbacks
 
-Use `grep` / `rg` / `find` only when Cymbal is unavailable, fails, or cannot cover the target: unindexed or excluded files, unsupported symbol syntax, filesystem operations outside a repository, or text/regex matching its search cannot express. Prefer `cymbal search --text` and `cymbal ls` before falling back for text search and file discovery. An empty result alone is not proof that a symbol or reference does not exist; check scope and indexing coverage first.
+1. **Cymbal first.** Prefer `cymbal search --text` for content and `cymbal ls` for file discovery, as well as the semantic commands above. Fall back when Cymbal is unavailable, fails, or cannot cover the target: excluded files, unsupported syntax, paths outside its index, or matching its search cannot express.
+2. **FFF second.** If the `@ff-labs/pi-fff` tools are available, use `fffind` for fuzzy path/glob search and `ffgrep` for content/text/regex search before shell search commands. FFF also supports paths outside the workspace; do not skip it merely because a target is outside the repository. Use the tools' advertised names and schemas; in FFF override mode they may be named `find` / `grep` instead.
+3. **Shell search last.** Use `rg` / `grep` / `find` only when both Cymbal and FFF are unavailable, fail, or cannot cover the required scope or matching behavior. Ordinary filesystem operations are outside this search preference order.
+
+An empty result alone is not proof that a file, symbol, or reference does not exist. Check path filters, exclusions, indexing coverage, and pagination before broadening the query or switching tools. FFF and shell text matches do not replace semantic references or call graphs; inspect the source when Cymbal cannot resolve them.
+
+For FFF, keep file queries to 1–2 terms, use `path` for scope and `exclude` for noise, and prefer bare identifiers for content search. Follow returned cursors when more results are needed, then read the relevant files rather than repeating searches. Neither fallback requires automatic installation.
 
 Command reference: https://cymbal.sh/

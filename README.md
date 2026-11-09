@@ -25,7 +25,7 @@ Shared reference materials for skills are bundled in [`skills/references`](./ski
 
 - [`create-pr`](./skills/create-pr/SKILL.md) — Create a GitHub PR with a contextual description, safe branch handling, and sanitized public-facing text. Defaults to a Draft PR. Invoke with `/skill:create-pr`; requires `git` and authenticated `gh`.
 - [`update-pr`](./skills/update-pr/SKILL.md) — Stage unstaged tracked changes, commit and push them, and refresh an existing PR description from the full PR diff. Invoke with `/skill:update-pr`; requires `git` and authenticated `gh`. Cymbal is optional.
-- [`cymbal`](./skills/cymbal/SKILL.md) — Prefer [Cymbal](https://cymbal.sh/) for code search and navigation over grep, ripgrep, and find. Requires the `cymbal` CLI.
+- [`code-search`](./skills/code-search/SKILL.md) — Prefer [Cymbal](https://cymbal.sh/) → FFF tools (`fffind` / `ffgrep`) → rg/grep/find for code search and navigation. Requires the `cymbal` CLI for primary search; `@ff-labs/pi-fff` is an optional fallback.
 - [`permission-handoff`](./skills/permission-handoff/SKILL.md) — Guides permission-error recovery through `request_command_handoff`, without automatically retrying or escalating privileges.
 - [`pr-review-plan`](./skills/pr-review-plan/SKILL.md) — Collect unresolved GitHub PR review threads and propose a concrete plan for each. Invoke with `/skill:pr-review-plan`; requires Node.js, `git`, and authenticated `gh`.
 
