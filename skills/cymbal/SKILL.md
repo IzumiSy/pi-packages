@@ -36,11 +36,31 @@ Use `cymbal` as the first choice for code search and navigation, not `grep`, `rg
 
 - Search for likely symbol names first. Symbol search ranks exact, prefix, and fuzzy matches; use `search --text` for words in comments, literals, or other file contents.
 - Prefer `show`, `investigate`, or `context` over reading whole files just to locate a definition or understand its callers. Read the surrounding file when the task needs more context.
-- Narrow ambiguous symbols with a file hint, such as `cymbal show src/auth.ts:login`, and use `--path` or `--kind` to narrow searches.
+- Narrow ambiguous symbols with a file hint, such as `cymbal show src/auth.ts:login`. For `cymbal search`, use `--path` or `--kind` to narrow results. For `cymbal ls`, pass the path or pattern as a positional argument; `ls` does not accept `--path`.
 - Batch independent symbol lookups where supported, for example `cymbal show Foo Bar Baz`. Add `--json` when structured output is useful; otherwise use the compact default output.
 - Before modifying shared code, use `impact` and inspect relevant references and importers.
 - References and call graphs are best-effort AST/name matches, not compiler-grade resolution. Inspect the source before concluding that two same-named symbols are identical or that there are no other callers.
 - Queries federate across worktrees by default. Add `--no-federate` when results must be restricted to the current worktree.
+
+## Examples: narrowing by path
+
+Flags are command-specific; do not assume a flag supported by `search` also works with `ls`.
+
+```bash
+# List indexed files under a directory: the path is a positional argument.
+cymbal ls --names src/components
+
+# List indexed TypeScript files matching a glob. Quote globs to prevent shell expansion.
+cymbal ls --names 'src/components/**/*.ts'
+
+# Search for a symbol within a path, optionally filtering by symbol kind.
+cymbal search login --path src/auth --kind function
+
+# Search file contents within a path.
+cymbal search --text 'TODO' --path src/components
+```
+
+Do not use `cymbal ls --names --path src/components`; it fails with `unknown flag: --path`. If unsure which flags a command accepts, check `cymbal <command> --help`.
 
 ## Fallbacks
 
