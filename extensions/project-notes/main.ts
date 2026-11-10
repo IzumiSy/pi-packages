@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import {
   getAgentDir,
   getSelectListTheme,

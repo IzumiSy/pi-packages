@@ -31,7 +31,7 @@ afterEach(async () => {
 });
 
 function result(stdout = "", code = 0): ExecResult {
-  return { stdout, stderr: "", code, killed: false };
+  return { stdout, stderr: "", code, killed: false, truncated: false };
 }
 
 function deferred<T>() {
