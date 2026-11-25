@@ -18,6 +18,7 @@ pi install git:github.com/IzumiSy/pi-packages
 | [`command-gate`](./extensions/command-gate/README.md)           | Blocks or asks for confirmation on matching bash commands, and provides tools to inspect and manage rules. |
 | [`command-handoff`](./extensions/command-handoff/README.md)     | Provides `request_command_handoff` to stage user-run shell commands and resume after their results.        |
 | [`project-notes`](./extensions/project-notes/README.md)         | Keeps personal Markdown notes outside the repository, shared across clones with the same origin.           |
+| [`footer`](./extensions/footer/README.md)                       | Shows machine, user, path, and branch on the left; model, effort, and context usage on the right.          |
 
 ## Skills
 
