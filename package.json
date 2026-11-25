@@ -37,7 +37,8 @@
       "./extensions/git-status-widget/main.ts",
       "./extensions/command-gate/main.ts",
       "./extensions/command-handoff/main.ts",
-      "./extensions/project-notes/main.ts"
+      "./extensions/project-notes/main.ts",
+      "./extensions/footer/main.ts"
     ],
     "skills": [
       "./skills"
